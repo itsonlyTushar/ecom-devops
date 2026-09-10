@@ -31,10 +31,11 @@ module.exports = {
     clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
     callbackURL: process.env.FACEBOOK_CALLBACK_URL
   },
-  aws: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    region: process.env.AWS_REGION,
-    bucketName: process.env.AWS_BUCKET_NAME
-  }
+  azure: {
+    connectionString: process.env.AZURE_STORAGE_CONNECTION_STRING,
+    accountName: process.env.AZURE_STORAGE_ACCOUNT_NAME,
+    accountKey: process.env.AZURE_STORAGE_ACCOUNT_KEY,
+    containerName: process.env.AZURE_STORAGE_CONTAINER_NAME || 'products'
+  },
+  aws: {}
 };

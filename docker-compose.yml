@@ -18,6 +18,8 @@ services:
       - CLIENT_URL=http://localhost:8080
       - JWT_SECRET=update_your_JWT_secret
       - MONGO_URI=mongodb://mongo:27017/mern_ecommerce # Default Mongo URL & DB name when running project locally
+      - AZURE_STORAGE_CONNECTION_STRING= # Optional Azure Blob Storage connection string
+      - AZURE_STORAGE_CONTAINER_NAME=products # Azure Blob Storage container name
     ports:
       - '3000:3000'
     command: [

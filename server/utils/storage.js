@@ -1,38 +1,71 @@
-const AWS = require('aws-sdk');
+const {
+  BlobServiceClient,
+  StorageSharedKeyCredential
+} = require('@azure/storage-blob');
 
 const keys = require('../config/keys');
 
-exports.s3Upload = async image => {
+const getBlobServiceClient = () => {
+  const { connectionString, accountName, accountKey } = keys.azure || {};
+
+  if (connectionString) {
+    return BlobServiceClient.fromConnectionString(connectionString);
+  }
+
+  if (accountName && accountKey) {
+    const sharedKeyCredential = new StorageSharedKeyCredential(
+      accountName,
+      accountKey
+    );
+    return new BlobServiceClient(
+      `https://${accountName}.blob.core.windows.net`,
+      sharedKeyCredential
+    );
+  }
+
+  return null;
+};
+
+exports.azureUpload = async image => {
   try {
     let imageUrl = '';
     let imageKey = '';
 
-    if (!keys.aws.accessKeyId) {
-      console.warn('Missing aws keys');
+    const blobServiceClient = getBlobServiceClient();
+
+    if (!blobServiceClient) {
+      console.warn(
+        'Missing Azure Blob Storage configuration (AZURE_STORAGE_CONNECTION_STRING or AZURE_STORAGE_ACCOUNT_NAME & AZURE_STORAGE_ACCOUNT_KEY)'
+      );
+      return { imageUrl, imageKey };
     }
 
     if (image) {
-      const s3bucket = new AWS.S3({
-        accessKeyId: keys.aws.accessKeyId,
-        secretAccessKey: keys.aws.secretAccessKey,
-        region: keys.aws.region
+      const containerName = keys.azure.containerName || 'products';
+      const containerClient = blobServiceClient.getContainerClient(containerName);
+
+      // Create container if it doesn't already exist with public blob read access
+      await containerClient.createIfNotExists({ access: 'blob' });
+
+      const blobName = `${Date.now()}-${image.originalname}`;
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+      await blockBlobClient.uploadData(image.buffer, {
+        blobHTTPHeaders: {
+          blobContentType: image.mimetype
+        }
       });
 
-      const params = {
-        Bucket: keys.aws.bucketName,
-        Key: image.originalname,
-        Body: image.buffer,
-        ContentType: image.mimetype
-      };
-
-      const s3Upload = await s3bucket.upload(params).promise();
-
-      imageUrl = s3Upload.Location;
-      imageKey = s3Upload.key;
+      imageUrl = blockBlobClient.url;
+      imageKey = blobName;
     }
 
     return { imageUrl, imageKey };
   } catch (error) {
+    console.error('Azure Blob Storage upload error:', error.message);
     return { imageUrl: '', imageKey: '' };
   }
 };
+
+// Backwards compatibility alias to prevent breaking existing callers
+exports.s3Upload = exports.azureUpload;

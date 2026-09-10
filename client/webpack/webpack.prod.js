@@ -13,6 +13,7 @@ const common = require('./webpack.common');
 const CURRENT_WORKING_DIR = process.cwd();
 const NODE_ENV = process.env.NODE_ENV;
 const API_URL = process.env.API_URL;
+const SOCKET_URL = process.env.SOCKET_URL;
 
 const config = {
   mode: 'production',
@@ -116,7 +117,8 @@ const config = {
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify(NODE_ENV),
-        API_URL: JSON.stringify(API_URL)
+        API_URL: JSON.stringify(API_URL),
+        SOCKET_URL: JSON.stringify(SOCKET_URL)
       }
     }),
     new HtmlWebpackPlugin({

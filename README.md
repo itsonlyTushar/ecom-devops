@@ -6,6 +6,7 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-brightgreen.svg?logo=mongodb)](https://www.mongodb.com/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg?logo=docker)](https://www.docker.com/)
 [![Nginx](https://img.shields.io/badge/Nginx-Reverse_Proxy-009639.svg?logo=nginx)](https://nginx.org/)
+[![Azure Native](https://img.shields.io/badge/Azure-Native-0078D4.svg?logo=microsoftazure)](https://azure.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A robust, enterprise-grade full-stack e-commerce web application built on the **MERN** (MongoDB, Express, React, Node.js) stack, fully containerized and production-ready using **Docker**, **Nginx**, and modern **DevOps** principles.
@@ -23,6 +24,7 @@ A robust, enterprise-grade full-stack e-commerce web application built on the **
 - [Manual Local Development](#-manual-local-development)
 - [Database Seeding](#-database-seeding)
 - [DevOps & Containerization Architecture](#-devops--containerization-architecture)
+- [Azure Native Architecture & Deployment](#-azure-native-architecture--deployment)
 - [API Overview](#-api-overview)
 - [NPM Scripts Reference](#-npm-scripts-reference)
 - [License](#-license)
@@ -51,7 +53,7 @@ A robust, enterprise-grade full-stack e-commerce web application built on the **
 - **Live Support Chat:** Real-time customer support chat powered by **Socket.io**.
 - **Email Marketing:** Newsletter subscriptions integrated with **Mailchimp**.
 - **Transactional Emails:** Order confirmations and notifications powered by **Mailgun**.
-- **Asset Storage:** Cloud product image uploads handled with **AWS S3** and Multer.
+- **Asset Storage:** Cloud product image uploads handled with **Azure Blob Storage** and Multer.
 
 ---
 
@@ -64,7 +66,7 @@ graph TD
     Client -.->|WebSocket| Socket[Socket.io Real-Time Chat]
     Socket --> Server
     Server --> MongoDB[(MongoDB Database / Port 27017)]
-    Server --> S3[(AWS S3 Media Bucket)]
+    Server --> AzureStorage[(Azure Blob Storage)]
     Server --> Mailgun[Mailgun Email Service]
     Server --> Mailchimp[Mailchimp Newsletter]
 ```
@@ -106,7 +108,7 @@ mern-ecommerce/
 │   ├── middleware/             # Role verification, JWT authentication middleware
 │   ├── models/                 # Mongoose schemas (User, Product, Order, etc.)
 │   ├── routes/                 # RESTful API route definitions
-│   ├── services/               # Integrations (AWS S3, Mailgun, Mailchimp)
+│   ├── services/               # Integrations (Azure Storage, Mailgun, Mailchimp)
 │   ├── socket/                 # Socket.io chat handlers
 │   ├── utils/                  # DB connection & Faker database seed scripts
 │   ├── Dockerfile              # Node.js backend container definition
@@ -161,11 +163,12 @@ FACEBOOK_CLIENT_ID=your_facebook_client_id
 FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
 FACEBOOK_CALLBACK_URL=http://localhost:3000/api/auth/facebook/callback
 
-# AWS S3 Storage (Optional for product image uploads)
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-AWS_REGION=us-east-2
-AWS_BUCKET_NAME=your_bucket_name
+# Azure Blob Storage (Optional for product image uploads)
+AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
+# Or use Account Name & Key
+AZURE_STORAGE_ACCOUNT_NAME=your_storage_account_name
+AZURE_STORAGE_ACCOUNT_KEY=your_storage_account_key
+AZURE_STORAGE_CONTAINER_NAME=products
 ```
 
 ### 2. Client Configuration (`client/.env`)
@@ -174,6 +177,8 @@ Create a `.env` file in the `client/` directory (refer to `client/.env.example`)
 
 ```env
 API_URL=http://localhost:3000/api
+# Optional: Set custom Socket.io server URL for Azure deployments
+SOCKET_URL=http://localhost:3000
 ```
 
 ---
@@ -288,12 +293,43 @@ All containers (`client`, `server`, `mongo`) communicate through an internal iso
 
 ---
 
+## ☁️ Azure Native Architecture & Deployment
+
+The backend is built to run as an **Azure-native** application with deep integration into Azure PaaS and Serverless offerings.
+
+### 1. Azure Blob Storage (Media Assets)
+Product image uploads use `@azure/storage-blob` instead of third-party cloud SDKs:
+- **Authentication:** Supports standard connection strings (`AZURE_STORAGE_CONNECTION_STRING`) or Managed Identity / Account Key credentials (`AZURE_STORAGE_ACCOUNT_NAME` & `AZURE_STORAGE_ACCOUNT_KEY`).
+- **Container Management:** Automatically provisions the designated blob container (defaults to `products`) with public blob read access (`access: 'blob'`) to enable direct browser loading of uploaded assets.
+- **Graceful Fallback:** If Azure credentials are not provided during local development, the application issues a diagnostic warning and proceeds without breaking.
+
+### 2. Azure App Service / Azure Container Apps
+The backend is container-ready for Azure PaaS hosting:
+- **Automatic Port Binding:** Dynamic port assignment via `process.env.PORT` ensures seamless compatibility with Azure App Service (which maps incoming traffic via internal ports) and Azure Container Apps.
+- **Health Check Integration:** Built-in `/health` and `/api/health` probes supply status and uptime JSON for Azure Liveness and Readiness probes.
+- **WebSockets / Socket.io:** Azure App Service WebSockets can be enabled under **Configuration > General settings > Web sockets: On**.
+
+### 3. Database: Azure Cosmos DB (MongoDB API)
+The database layer uses standard Mongoose connection strings, allowing drop-in connection to **Azure Cosmos DB for MongoDB** with zero code changes:
+```env
+MONGO_URI=mongodb://<cosmos-account>:<key>@<cosmos-account>.mongo.cosmos.azure.com:10255/mern_ecommerce?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@<cosmos-account>@
+```
+
+### 4. Client Wiring for Azure
+When hosting the client on **Azure Static Web Apps** or an independent Azure App Service:
+- Configure `API_URL` to point to the backend URL (e.g. `https://<backend-app>.azurewebsites.net/api`).
+- Configure `SOCKET_URL` to point to the real-time chat endpoint (e.g. `https://<backend-app>.azurewebsites.net`).
+
+---
+
 ## 🔌 API Overview
 
 All API endpoints are prefixed by `/api`:
 
 | Method | Endpoint | Description | Access |
 | :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Cloud health probe / service uptime | Public |
+| `GET` | `/api/health` | API health probe / service uptime | Public |
 | `POST` | `/api/auth/register` | Register new user | Public |
 | `POST` | `/api/auth/login` | Login user & return JWT | Public |
 | `GET` | `/api/auth/google` | Google OAuth authentication | Public |
