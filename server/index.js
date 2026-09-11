@@ -2,9 +2,9 @@ require('dotenv').config();
 const chalk = require('chalk');
 
 const keys = require('./config/keys');
-const socket = require('./socket');
 const setupDB = require('./utils/db');
 const app = require('./app');
+const socket = require('./socket');
 
 const { port } = keys;
 

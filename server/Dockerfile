@@ -1,5 +1,5 @@
-# Use official Node.js 14 as base image
-FROM node:16.20.2-buster-slim
+# Use official Node.js 18 as base image
+FROM node:18-bullseye-slim
 
 # Set working directory
 WORKDIR /usr/src/app
@@ -8,7 +8,9 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+# Note: --omit=dev breaks seed.js at container startup (utils/seed.js requires
+# the devDependency 'chalk'), so all deps are installed here.
+RUN npm ci
 
 # Copy the rest of the server code
 COPY . .
