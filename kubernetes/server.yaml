@@ -25,7 +25,10 @@ spec:
             - name: MONGO_URI
               value: 'mongodb://mongo:27017/mern_ecommerce'
             - name: JWT_SECRET
-              value: 'mysecretjwtkey'
+              valueFrom:
+                secretKeyRef:
+                  name: server-secrets
+                  key: JWT_SECRET
 ---
 apiVersion: v1
 kind: Service
