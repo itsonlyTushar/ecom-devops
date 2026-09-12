@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      containers:
+        - name: server
+          image: devopscommerce.azurecr.io/server:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: '3000'
+            - name: BASE_API_URL
+              value: 'api'
+            - name: MONGO_URI
+              value: 'mongodb://mongo:27017/mern_ecommerce'
+            - name: JWT_SECRET
+              value: 'mysecretjwtkey'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+spec:
+  selector:
+    app: server
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: LoadBalancer
