@@ -21,3 +21,17 @@ yarn-error.log*
 DOC.md
 ROADMAP.md
 ecommerce_cicd_capstone_project.md
+
+# terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
