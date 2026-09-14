@@ -25,6 +25,9 @@ A robust, enterprise-grade full-stack e-commerce web application built on the **
 - [Database Seeding](#-database-seeding)
 - [DevOps & Containerization Architecture](#-devops--containerization-architecture)
 - [Azure Native Architecture & Deployment](#-azure-native-architecture--deployment)
+- [Infrastructure as Code](#-infrastructure-as-code)
+- [Security](#-security)
+- [Monitoring & Cost Management](#-monitoring--cost-management)
 - [API Overview](#-api-overview)
 - [NPM Scripts Reference](#-npm-scripts-reference)
 - [License](#-license)
@@ -169,6 +172,9 @@ AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
 AZURE_STORAGE_ACCOUNT_NAME=your_storage_account_name
 AZURE_STORAGE_ACCOUNT_KEY=your_storage_account_key
 AZURE_STORAGE_CONTAINER_NAME=products
+
+# Azure Application Insights (Optional — enables server observability, leave blank to disable)
+APPLICATIONINSIGHTS_CONNECTION_STRING=your_application_insights_connection_string
 ```
 
 ### 2. Client Configuration (`client/.env`)
@@ -295,6 +301,18 @@ All containers (`client`, `server`, `mongo`) communicate through an internal iso
 
 ## ☁️ Azure Native Architecture & Deployment
 
+### Azure DevOps CI/CD
+
+The repository includes [`azure-pipelines.yml`](azure-pipelines.yml). It runs on pull requests and pushes to `develop` or `master`:
+
+1. Pull requests install dependencies, run the server tests, and build the client.
+2. A push to `develop` builds both Docker images, scans them with Trivy, pushes the commit-tagged images to ACR, and deploys to `staging`.
+3. A push to `master` builds and scans the images, then deploys them to `production` after the approval check.
+
+Create an Azure DevOps service connection named `ecommerce-azure` and a variable group containing the secret variables `APPLICATIONINSIGHTS_CONNECTION_STRING`, `AKS_KEYVAULT_IDENTITY_CLIENT_ID`, and `AZURE_TENANT_ID`. The pipeline uses the Azure DevOps environments `ecommerce-staging` and `ecommerce-production`; configure a manual approval check on `ecommerce-production` in Azure DevOps before enabling production promotion.
+
+The deployment uses the existing Kubernetes base manifests and applies them into separate namespaces. Staging runs one client and server replica; production runs two replicas. Azure DevOps is the only automated CI/CD platform for this repository.
+
 The backend is built to run as an **Azure-native** application with deep integration into Azure PaaS and Serverless offerings.
 
 ### 1. Azure Blob Storage (Media Assets)
@@ -316,9 +334,55 @@ MONGO_URI=mongodb://<cosmos-account>:<key>@<cosmos-account>.mongo.cosmos.azure.c
 ```
 
 ### 4. Client Wiring for Azure
-When hosting the client on **Azure Static Web Apps** or an independent Azure App Service:
-- Configure `API_URL` to point to the backend URL (e.g. `https://<backend-app>.azurewebsites.net/api`).
-- Configure `SOCKET_URL` to point to the real-time chat endpoint (e.g. `https://<backend-app>.azurewebsites.net`).
+For the AKS deployment, the client image uses relative `/api` and `/` Socket.io URLs. Nginx proxies those paths to the internal `server:3000` Kubernetes service, so the backend does not need a public endpoint. When hosting the client outside AKS, set `API_URL` and `SOCKET_URL` to the public backend URL instead.
+
+---
+
+## 🧱 Infrastructure as Code
+
+Everything in `infra/` is Terraform (`azurerm` provider). Running `terraform apply` provisions:
+
+| File | Resources |
+|---|---|
+| `infra/main.tf` | ACR, VNet + subnet, NSG, the AKS cluster itself, and the AcrPull role assignment so AKS can pull images without imagePullSecrets |
+| `infra/security.tf` | Key Vault, the `JWT_SECRET` secret, and access policies for both the person running Terraform and AKS's Secrets Store CSI identity |
+| `infra/monitoring.tf` | Log Analytics workspace, Application Insights, an action group, and two metric alerts |
+| `infra/cost-management.tf` | A resource-group budget with spend notifications |
+
+**ACR note:** the registry used to only be referenced as a `data` source (created manually via `az acr create` before this Terraform existed). It's now a real managed `resource`, which means an existing registry has to be imported into state once before the first `apply` — the exact `terraform import` command is in a comment above the resource in `main.tf`. Skipping that step will make Terraform try to create a second registry with the same name and fail.
+
+**Kubernetes networking note:** only the client Service is public (`LoadBalancer`). The server and MongoDB use internal `ClusterIP` Services. Nginx forwards `/api` and `/socket.io` traffic from the client to `server:3000`. The NSG remains attached to the AKS subnet for the infrastructure requirement; AKS-managed load-balancer rules should be checked after provisioning when custom subnet rules are used.
+
+State is local (no remote backend configured) — fine for a single-contributor capstone, but `**/.terraform/*` and `*.tfstate*` are gitignored either way so no secrets or state end up in the repo.
+
+---
+
+## 🔒 Security
+
+- **Key Vault** (`infra/security.tf`) — `JWT_SECRET` lives in Azure Key Vault, not Azure DevOps variables -> Kubernetes directly. The AKS cluster has the Secrets Store CSI driver add-on enabled (`key_vault_secrets_provider` in `infra/main.tf`), and `kubernetes/secret-provider.yaml` mounts the Key Vault secret into the `server` pod, syncing it into a native `server-secrets` Kubernetes Secret that the container reads via `JWT_SECRET`. App Insights uses a separate `appinsights-secrets` Kubernetes Secret populated by Azure DevOps.
+- **Image scanning** — Trivy scans both images in CI (`azure-pipelines.yml`) for CRITICAL vulnerabilities and **fails the build** if any are found (`exit-code: '1'`). HIGH-severity findings are left as informational for now rather than blocking, since gating on those too would need a proper triage/allowlist process this project doesn't have yet.
+- **Kubernetes RBAC** (`kubernetes/rbac.yaml`) — the server pod runs under its own `server-sa` ServiceAccount with a minimal Role, instead of the namespace's default ServiceAccount (which can often read Secrets/ConfigMaps in some cluster configs). It's scoped to `get`/`list` on ConfigMaps only — the app doesn't talk to the Kubernetes API today, so this is intentionally close to zero permissions rather than guessing at future needs.
+- **NetworkPolicy** (`kubernetes/network-policy.yaml`) — `mongo` only accepts traffic from the `server` pod on port 27017. The client is the only public Kubernetes Service; the server and MongoDB remain internal.
+
+**Deploying this**: `terraform apply` needs `TF_VAR_jwt_secret` set (no default is checked in). After applying, add `AKS_KEYVAULT_IDENTITY_CLIENT_ID`, `AZURE_TENANT_ID`, and `APPLICATIONINSIGHTS_CONNECTION_STRING` as secret variables in the `ecommerce-secrets` Azure DevOps variable group. The values come from `terraform output aks_keyvault_identity_client_id`, your tenant ID, and the Application Insights output; the pipeline patches `secret-provider.yaml` with the cluster identity before deploying.
+
+---
+
+## 📈 Monitoring & Cost Management
+
+Set up through Terraform ([`infra/monitoring.tf`](infra/monitoring.tf), [`infra/cost-management.tf`](infra/cost-management.tf)) instead of clicking through the portal.
+
+### Monitoring
+- **Log Analytics Workspace** (`azurerm_log_analytics_workspace.main`) — central sink for cluster and application telemetry, 30-day retention by default.
+- **AKS Container Insights** — enabled via the `oms_agent` block on the AKS cluster resource; ships node/pod/container CPU, memory, and log data to the workspace, visible under the cluster's *Insights* blade.
+- **Application Insights** (`azurerm_application_insights.server`) — workspace-based, tracks the Node/Express API's requests, dependencies, exceptions, and live metrics. The server auto-instruments via `server/config/monitoring.js`, activated by setting `APPLICATIONINSIGHTS_CONNECTION_STRING` (wired through the `appinsights-secrets` Kubernetes Secret in CI/CD — see [`azure-pipelines.yml`](azure-pipelines.yml)); it's a no-op when unset, so local dev is unaffected.
+- **Alerts** — two `azurerm_monitor_metric_alert` rules (server high-latency, AKS node high-CPU) notify `azurerm_monitor_action_group.ops` by email when triggered.
+
+### Cost Management
+- **Budget** (`azurerm_consumption_budget_resource_group.monthly`) — scoped to the resource group, with notifications at 80% actual, 100% actual, and 100% forecasted spend.
+- **Cost estimate** — a full Azure Pricing Calculator-based breakdown, itemized per service (AKS, ACR, Load Balancer, Log Analytics, Application Insights), is documented in [`docs/cost-estimate.md`](docs/cost-estimate.md).
+
+Configure the alert email and budget amount via `alert_email` and `monthly_budget_inr` in `infra/variables.tf`.
 
 ---
 

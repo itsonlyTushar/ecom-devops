@@ -37,5 +37,8 @@ module.exports = {
     accountKey: process.env.AZURE_STORAGE_ACCOUNT_KEY,
     containerName: process.env.AZURE_STORAGE_CONTAINER_NAME || 'products'
   },
+  appInsights: {
+    connectionString: process.env.APPLICATIONINSIGHTS_CONNECTION_STRING
+  },
   aws: {}
 };

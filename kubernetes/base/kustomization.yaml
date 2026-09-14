@@ -5,6 +5,9 @@ resources:
   - mongo.yaml
   - server.yaml
   - client.yaml
+  - rbac.yaml
+  - network-policy.yaml
+  - secret-provider.yaml
 
 images:
   - name: devopscommerce.azurecr.io/server

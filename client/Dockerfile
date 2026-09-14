@@ -14,6 +14,8 @@ RUN npm ci
 COPY . .
 
 RUN mv .env.example .env
+RUN sed -i 's|^API_URL=.*|API_URL=/api|' .env && \
+    sed -i 's|^SOCKET_URL=.*|SOCKET_URL=/|' .env
 
 # Build the client for production
 RUN npm run build

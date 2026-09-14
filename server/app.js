@@ -16,6 +16,8 @@ app.use(
 );
 app.use(cors());
 
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+
 require('./config/passport')(app);
 app.use(routes);
 

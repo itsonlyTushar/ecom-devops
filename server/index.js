@@ -1,4 +1,6 @@
 require('dotenv').config();
+require('./config/monitoring')();
+
 const chalk = require('chalk');
 
 const keys = require('./config/keys');
