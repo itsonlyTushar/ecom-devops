@@ -113,11 +113,13 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-  deploy-to-aks:
-    name: Kubernetes - Deploy to AKS
+  deploy-staging:
+    name: Kubernetes - Deploy to AKS (Staging)
     runs-on: ubuntu-latest
     needs: [acr-push]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -133,18 +135,60 @@ jobs:
 
       - name: Create or Update Secrets
         run: |
+          kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic server-secrets \
+            --namespace staging \
             --from-literal=JWT_SECRET=${{ secrets.JWT_SECRET }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy with Kustomize (Git SHA Tagging)
         run: |
-          cd kubernetes
+          cd kubernetes/overlays/staging
           kustomize edit set image devopscommerce.azurecr.io/server=${{ secrets.ACR_NAME }}.azurecr.io/server:${{ github.sha }}
           kustomize edit set image devopscommerce.azurecr.io/client=${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
           kubectl apply -k .
 
       - name: Verify Rollout Status
         run: |
-          kubectl rollout status deployment/server --timeout=180s
-          kubectl rollout status deployment/client --timeout=180s
+          kubectl rollout status deployment/server --namespace staging --timeout=180s
+          kubectl rollout status deployment/client --namespace staging --timeout=180s
+
+  deploy-production:
+    name: Kubernetes - Deploy to AKS (Production)
+    runs-on: ubuntu-latest
+    needs: [acr-push]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Set up Kubernetes Context
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      - name: Create or Update Secrets
+        run: |
+          kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic server-secrets \
+            --namespace production \
+            --from-literal=JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy with Kustomize (Git SHA Tagging)
+        run: |
+          cd kubernetes/overlays/production
+          kustomize edit set image devopscommerce.azurecr.io/server=${{ secrets.ACR_NAME }}.azurecr.io/server:${{ github.sha }}
+          kustomize edit set image devopscommerce.azurecr.io/client=${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
+          kubectl apply -k .
+
+      - name: Verify Rollout Status
+        run: |
+          kubectl rollout status deployment/server --namespace production --timeout=180s
+          kubectl rollout status deployment/client --namespace production --timeout=180s
