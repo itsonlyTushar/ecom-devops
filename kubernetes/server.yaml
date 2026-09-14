@@ -12,6 +12,7 @@ spec:
       labels:
         app: server
     spec:
+      serviceAccountName: server-sa
       containers:
         - name: server
           image: devopscommerce.azurecr.io/server:latest
@@ -29,6 +30,42 @@ spec:
                 secretKeyRef:
                   name: server-secrets
                   key: JWT_SECRET
+            - name: APPLICATIONINSIGHTS_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: appinsights-secrets
+                  key: APPLICATIONINSIGHTS_CONNECTION_STRING
+                  optional: true
+          volumeMounts:
+            - name: kv-secrets
+              mountPath: '/mnt/secrets-store'
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: kv-secrets
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: server-kv-secrets
 ---
 apiVersion: v1
 kind: Service
@@ -40,4 +77,4 @@ spec:
   ports:
     - port: 3000
       targetPort: 3000
-  type: LoadBalancer
+  type: ClusterIP

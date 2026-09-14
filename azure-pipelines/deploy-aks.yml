@@ -1,0 +1,36 @@
+parameters:
+  namespace: ''
+  replicas: 1
+
+steps:
+  - task: AzureCLI@2
+    displayName: Apply Kubernetes manifests
+    inputs:
+      azureSubscription: '$(azureServiceConnection)'
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -euo pipefail
+        sed -i "s/newTag: latest/newTag: $(imageTag)/g" kubernetes/kustomization.yaml
+        sed -i "s/userAssignedIdentityID: .*/userAssignedIdentityID: '$(AKS_KEYVAULT_IDENTITY_CLIENT_ID)'/" \
+          kubernetes/secret-provider.yaml
+        sed -i "s/tenantId: .*/tenantId: '$(AZURE_TENANT_ID)'/" \
+          kubernetes/secret-provider.yaml
+
+        az aks get-credentials \
+          --resource-group "$(aksResourceGroup)" \
+          --name "$(aksCluster)" \
+          --overwrite-existing
+
+        kubectl create namespace "${{ parameters.namespace }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        kubectl -n "${{ parameters.namespace }}" create secret generic appinsights-secrets \
+          --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING="$(APPLICATIONINSIGHTS_CONNECTION_STRING)" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        kubectl apply -k kubernetes -n "${{ parameters.namespace }}"
+        kubectl -n "${{ parameters.namespace }}" scale deployment/server \
+          deployment/client --replicas=${{ parameters.replicas }}
+        kubectl -n "${{ parameters.namespace }}" rollout status deployment/server --timeout=180s
+        kubectl -n "${{ parameters.namespace }}" rollout status deployment/client --timeout=180s

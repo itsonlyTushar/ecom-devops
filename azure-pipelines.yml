@@ -1,0 +1,123 @@
+trigger:
+  branches:
+    include:
+      - master
+      - develop
+
+pr:
+  branches:
+    include:
+      - master
+      - develop
+
+variables:
+  - group: ecommerce-secrets
+  - name: nodeVersion
+    value: '18.x'
+  - name: acrName
+    value: 'devopscommerce'
+  - name: acrLoginServer
+    value: 'devopscommerce.azurecr.io'
+  - name: imageTag
+    value: '$(Build.SourceVersion)'
+  - name: azureServiceConnection
+    value: 'ecommerce-azure'
+  - name: aksResourceGroup
+    value: 'rg-ecommerce-devops'
+  - name: aksCluster
+    value: 'aks-ecommerce-devops'
+
+stages:
+  - stage: Build
+    displayName: Build and test
+    jobs:
+      - job: Validate
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '$(nodeVersion)'
+
+          - script: npm ci
+            displayName: Install root dependencies
+
+          - script: npm ci
+            workingDirectory: server
+            displayName: Install server dependencies
+
+          - script: npm test -- --runInBand
+            workingDirectory: server
+            displayName: Run server tests
+
+          - script: npm ci
+            workingDirectory: client
+            displayName: Install client dependencies
+
+          - script: npm run build
+            workingDirectory: client
+            displayName: Build client
+
+          - task: AzureCLI@2
+            displayName: Build, scan, and push images
+            condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'))
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az acr login --name "$(acrName)"
+
+                docker build -t "$(acrLoginServer)/server:$(imageTag)" server
+                docker build -t "$(acrLoginServer)/client:$(imageTag)" client
+
+                docker run --rm aquasec/trivy:0.56.2 image \
+                  --exit-code 1 --ignore-unfixed --severity CRITICAL \
+                  "$(acrLoginServer)/server:$(imageTag)"
+                docker run --rm aquasec/trivy:0.56.2 image \
+                  --exit-code 1 --ignore-unfixed --severity CRITICAL \
+                  "$(acrLoginServer)/client:$(imageTag)"
+
+                docker push "$(acrLoginServer)/server:$(imageTag)"
+                docker push "$(acrLoginServer)/client:$(imageTag)"
+
+  - stage: Deploy_Staging
+    displayName: Deploy to staging
+    dependsOn: Build
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - deployment: Staging
+        environment: ecommerce-staging
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: azure-pipelines/deploy-aks.yml
+                  parameters:
+                    namespace: staging
+                    replicas: 1
+
+  - stage: Deploy_Production
+    displayName: Promote to production
+    dependsOn: Build
+    condition: and(succeeded(), ne(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+    jobs:
+      - deployment: Production
+        environment: ecommerce-production
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: azure-pipelines/deploy-aks.yml
+                  parameters:
+                    namespace: production
+                    replicas: 2
