@@ -12,13 +12,14 @@ provider "azurerm" {
   features {}
 }
 
-# 1. Reference existing Azure Container Registry from Phase 4
-data "azurerm_container_registry" "acr" {
+resource "azurerm_container_registry" "acr" {
   name                = var.acr_name
+  location            = var.location
   resource_group_name = var.resource_group_name
+  sku                 = "Basic"
+  admin_enabled       = true
 }
 
-# 2. Virtual Network for AKS Cluster
 resource "azurerm_virtual_network" "vnet" {
   name                = "vnet-ecommerce-aks"
   location            = var.location
@@ -31,7 +32,6 @@ resource "azurerm_virtual_network" "vnet" {
   }
 }
 
-# 3. Subnet for AKS Node Pool
 resource "azurerm_subnet" "aks_subnet" {
   name                 = "subnet-aks"
   resource_group_name  = var.resource_group_name
@@ -39,7 +39,41 @@ resource "azurerm_subnet" "aks_subnet" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# 4. Azure Kubernetes Service (AKS) Cluster
+resource "azurerm_network_security_group" "aks_nsg" {
+  name                = "nsg-ecommerce-aks"
+  location            = var.location
+  resource_group_name = var.resource_group_name
+
+  security_rule {
+    name                       = "allow-client-http"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  security_rule {
+    name                       = "allow-server-api"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "3000"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_subnet_network_security_group_association" "aks_subnet_nsg" {
+  subnet_id                 = azurerm_subnet.aks_subnet.id
+  network_security_group_id = azurerm_network_security_group.aks_nsg.id
+}
+
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = var.cluster_name
   location            = var.location
@@ -64,6 +98,14 @@ resource "azurerm_kubernetes_cluster" "aks" {
     dns_service_ip    = var.dns_service_ip
   }
 
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  }
+
+  key_vault_secrets_provider {
+    secret_rotation_enabled = true
+  }
+
   tags = {
     Environment = "DevOps-Capstone"
     Project     = "MERN-Ecommerce"
@@ -71,10 +113,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
-# 5. Role Assignment: Grant AKS permission to pull images from ACR (AcrPull)
 resource "azurerm_role_assignment" "aks_acr_pull" {
   principal_id                     = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
   role_definition_name             = "AcrPull"
-  scope                            = data.azurerm_container_registry.acr.id
+  scope                            = azurerm_container_registry.acr.id
   skip_service_principal_aad_check = true
 }
