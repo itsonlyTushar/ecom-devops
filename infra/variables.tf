@@ -16,6 +16,23 @@ variable "acr_name" {
   default     = "devopscommerce"
 }
 
+variable "key_vault_name" {
+  description = "Name of the Azure Key Vault (must be globally unique, 3-24 alphanumeric/hyphen chars)"
+  type        = string
+  default     = "kv-ecommerce-devops"
+}
+
+variable "alert_email" {
+  description = "Email address that receives Azure Monitor and budget alerts"
+  type        = string
+}
+
+variable "monthly_budget_amount" {
+  description = "Monthly spend budget for the resource group, in the subscription's billing currency"
+  type        = number
+  default     = 50
+}
+
 variable "cluster_name" {
   description = "Name of the Azure Kubernetes Service (AKS) cluster"
   type        = string
