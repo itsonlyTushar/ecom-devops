@@ -130,26 +130,6 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Read outputs
-        id: tf-outputs
-        working-directory: infra
-        run: |
-          terraform init -input=false
-          echo "key_vault_name=$(terraform output -raw key_vault_name)" >> "$GITHUB_OUTPUT"
-          echo "tenant_id=$(terraform output -raw tenant_id)" >> "$GITHUB_OUTPUT"
-          echo "client_id=$(terraform output -raw aks_secrets_provider_client_id)" >> "$GITHUB_OUTPUT"
-          APPI_CONN="$(terraform output -raw app_insights_connection_string)"
-          echo "::add-mask::$APPI_CONN"
-          echo "appi_connection_string=$APPI_CONN" >> "$GITHUB_OUTPUT"
-
       - name: Set context
         uses: azure/k8s-set-context@v4
         with:
@@ -162,15 +142,15 @@ jobs:
       - name: Create secret
         run: |
           kubectl create secret generic appinsights-secrets \
-            --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ steps.tf-outputs.outputs.appi_connection_string }}' \
+            --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ secrets.APP_INSIGHTS_CONNECTION_STRING }}' \
             --namespace staging \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Substitute secrets
         env:
-          KEY_VAULT_NAME: ${{ steps.tf-outputs.outputs.key_vault_name }}
-          TENANT_ID: ${{ steps.tf-outputs.outputs.tenant_id }}
-          AKS_SECRETS_PROVIDER_CLIENT_ID: ${{ steps.tf-outputs.outputs.client_id }}
+          KEY_VAULT_NAME: ${{ secrets.KEY_VAULT_NAME }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AKS_SECRETS_PROVIDER_CLIENT_ID: ${{ secrets.AKS_SECRETS_PROVIDER_CLIENT_ID }}
         run: |
           envsubst < kubernetes/base/secret-provider.yaml > /tmp/secret-provider.yaml
           mv /tmp/secret-provider.yaml kubernetes/base/secret-provider.yaml
@@ -204,26 +184,6 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Azure login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Read outputs
-        id: tf-outputs
-        working-directory: infra
-        run: |
-          terraform init -input=false
-          echo "key_vault_name=$(terraform output -raw key_vault_name)" >> "$GITHUB_OUTPUT"
-          echo "tenant_id=$(terraform output -raw tenant_id)" >> "$GITHUB_OUTPUT"
-          echo "client_id=$(terraform output -raw aks_secrets_provider_client_id)" >> "$GITHUB_OUTPUT"
-          APPI_CONN="$(terraform output -raw app_insights_connection_string)"
-          echo "::add-mask::$APPI_CONN"
-          echo "appi_connection_string=$APPI_CONN" >> "$GITHUB_OUTPUT"
-
       - name: Set context
         uses: azure/k8s-set-context@v4
         with:
@@ -236,15 +196,15 @@ jobs:
       - name: Create secret
         run: |
           kubectl create secret generic appinsights-secrets \
-            --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ steps.tf-outputs.outputs.appi_connection_string }}' \
+            --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ secrets.APP_INSIGHTS_CONNECTION_STRING }}' \
             --namespace production \
             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Substitute secrets
         env:
-          KEY_VAULT_NAME: ${{ steps.tf-outputs.outputs.key_vault_name }}
-          TENANT_ID: ${{ steps.tf-outputs.outputs.tenant_id }}
-          AKS_SECRETS_PROVIDER_CLIENT_ID: ${{ steps.tf-outputs.outputs.client_id }}
+          KEY_VAULT_NAME: ${{ secrets.KEY_VAULT_NAME }}
+          TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AKS_SECRETS_PROVIDER_CLIENT_ID: ${{ secrets.AKS_SECRETS_PROVIDER_CLIENT_ID }}
         run: |
           envsubst < kubernetes/base/secret-provider.yaml > /tmp/secret-provider.yaml
           mv /tmp/secret-provider.yaml kubernetes/base/secret-provider.yaml
