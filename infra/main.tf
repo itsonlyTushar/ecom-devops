@@ -5,6 +5,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 3.70"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
   }
 }
 
@@ -12,13 +16,11 @@ provider "azurerm" {
   features {}
 }
 
-# 1. Reference existing Azure Container Registry from Phase 4
 data "azurerm_container_registry" "acr" {
   name                = var.acr_name
   resource_group_name = var.resource_group_name
 }
 
-# 2. Virtual Network for AKS Cluster
 resource "azurerm_virtual_network" "vnet" {
   name                = "vnet-ecommerce-aks"
   location            = var.location
@@ -31,7 +33,6 @@ resource "azurerm_virtual_network" "vnet" {
   }
 }
 
-# 3. Subnet for AKS Node Pool
 resource "azurerm_subnet" "aks_subnet" {
   name                 = "subnet-aks"
   resource_group_name  = var.resource_group_name
@@ -39,12 +40,12 @@ resource "azurerm_subnet" "aks_subnet" {
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-# 4. Azure Kubernetes Service (AKS) Cluster
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = var.cluster_name
   location            = var.location
   resource_group_name = var.resource_group_name
   dns_prefix          = var.dns_prefix
+  oidc_issuer_enabled = true
 
   default_node_pool {
     name           = "default"
@@ -55,6 +56,14 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   identity {
     type = "SystemAssigned"
+  }
+
+  key_vault_secrets_provider {
+    secret_rotation_enabled = true
+  }
+
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
   }
 
   network_profile {
@@ -71,7 +80,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 }
 
-# 5. Role Assignment: Grant AKS permission to pull images from ACR (AcrPull)
 resource "azurerm_role_assignment" "aks_acr_pull" {
   principal_id                     = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
   role_definition_name             = "AcrPull"

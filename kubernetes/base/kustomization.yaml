@@ -5,3 +5,5 @@ resources:
   - mongo.yaml
   - server.yaml
   - client.yaml
+  - rbac.yaml
+  - secret-provider.yaml

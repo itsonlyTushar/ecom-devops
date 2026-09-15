@@ -11,6 +11,7 @@
   "dependencies": {
     "@azure/storage-blob": "^12.17.0",
     "@faker-js/faker": "^8.4.1",
+    "applicationinsights": "^3.16.0",
     "axios": "^0.21.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

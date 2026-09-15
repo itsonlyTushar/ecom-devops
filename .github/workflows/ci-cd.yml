@@ -11,42 +11,42 @@ env:
 
 jobs:
   server:
-    name: Server - Install, Test
+    name: Server
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: server/package-lock.json
 
-      - name: Install dependencies
+      - name: Install
         working-directory: server
         run: npm ci
 
-      - name: Run tests
+      - name: Test
         working-directory: server
         run: npm test
 
   client:
-    name: Client - Install, Build
+    name: Client
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: client/package-lock.json
 
-      - name: Install dependencies
+      - name: Install
         working-directory: client
         run: npm ci
 
@@ -55,25 +55,25 @@ jobs:
         run: npm run build
 
   acr-push:
-    name: Docker - Build & Push to ACR
+    name: Docker
     runs-on: ubuntu-latest
     needs: [server, client]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
+      - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Azure Container Registry
+      - name: Login to ACR
         uses: docker/login-action@v3
         with:
           registry: ${{ secrets.ACR_NAME }}.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
-      - name: Build and Push Server Image
+      - name: Build server
         uses: docker/build-push-action@v5
         with:
           context: server
@@ -83,7 +83,7 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/server:${{ github.sha }}
             ${{ secrets.ACR_NAME }}.azurecr.io/server:latest
 
-      - name: Build and Push Client Image
+      - name: Build client
         uses: docker/build-push-action@v5
         with:
           context: client
@@ -93,7 +93,7 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
             ${{ secrets.ACR_NAME }}.azurecr.io/client:latest
 
-      - name: Scan Server Image with Trivy
+      - name: Trivy server
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ secrets.ACR_NAME }}.azurecr.io/server:${{ github.sha }}
@@ -103,7 +103,7 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      - name: Scan Client Image with Trivy
+      - name: Trivy client
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
@@ -114,91 +114,149 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
   deploy-staging:
-    name: Kubernetes - Deploy to AKS (Staging)
+    name: Staging
     runs-on: ubuntu-latest
     needs: [acr-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     environment:
       name: staging
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
+      - name: Setup kubectl
         uses: azure/setup-kubectl@v4
 
-      - name: Set up Kustomize
+      - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Set up Kubernetes Context
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Read outputs
+        id: tf-outputs
+        working-directory: infra
+        run: |
+          terraform init -input=false
+          echo "key_vault_name=$(terraform output -raw key_vault_name)" >> "$GITHUB_OUTPUT"
+          echo "tenant_id=$(terraform output -raw tenant_id)" >> "$GITHUB_OUTPUT"
+          echo "client_id=$(terraform output -raw aks_secrets_provider_client_id)" >> "$GITHUB_OUTPUT"
+          APPI_CONN="$(terraform output -raw app_insights_connection_string)"
+          echo "::add-mask::$APPI_CONN"
+          echo "appi_connection_string=$APPI_CONN" >> "$GITHUB_OUTPUT"
+
+      - name: Set context
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
-      - name: Create Namespace
+      - name: Create namespace
         run: kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create or Update Secrets
+      - name: Create secret
         run: |
-          kubectl create secret generic server-secrets \
-            --from-literal=JWT_SECRET=${{ secrets.JWT_SECRET }} \
+          kubectl create secret generic appinsights-secrets \
+            --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ steps.tf-outputs.outputs.appi_connection_string }}' \
             --namespace staging \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy with Kustomize (Git SHA Tagging)
+      - name: Substitute secrets
+        env:
+          KEY_VAULT_NAME: ${{ steps.tf-outputs.outputs.key_vault_name }}
+          TENANT_ID: ${{ steps.tf-outputs.outputs.tenant_id }}
+          AKS_SECRETS_PROVIDER_CLIENT_ID: ${{ steps.tf-outputs.outputs.client_id }}
+        run: |
+          envsubst < kubernetes/base/secret-provider.yaml > /tmp/secret-provider.yaml
+          mv /tmp/secret-provider.yaml kubernetes/base/secret-provider.yaml
+
+      - name: Deploy
         run: |
           cd kubernetes/overlays/staging
           kustomize edit set image devopscommerce.azurecr.io/server=${{ secrets.ACR_NAME }}.azurecr.io/server:${{ github.sha }}
           kustomize edit set image devopscommerce.azurecr.io/client=${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
           kubectl apply -k .
 
-      - name: Verify Rollout Status
+      - name: Rollout
         run: |
           kubectl rollout status deployment/server --namespace staging --timeout=180s
           kubectl rollout status deployment/client --namespace staging --timeout=180s
 
   deploy-production:
-    name: Kubernetes - Deploy to AKS (Production)
+    name: Production
     runs-on: ubuntu-latest
     needs: [acr-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     environment:
       name: production
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
+      - name: Setup kubectl
         uses: azure/setup-kubectl@v4
 
-      - name: Set up Kustomize
+      - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Set up Kubernetes Context
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Read outputs
+        id: tf-outputs
+        working-directory: infra
+        run: |
+          terraform init -input=false
+          echo "key_vault_name=$(terraform output -raw key_vault_name)" >> "$GITHUB_OUTPUT"
+          echo "tenant_id=$(terraform output -raw tenant_id)" >> "$GITHUB_OUTPUT"
+          echo "client_id=$(terraform output -raw aks_secrets_provider_client_id)" >> "$GITHUB_OUTPUT"
+          APPI_CONN="$(terraform output -raw app_insights_connection_string)"
+          echo "::add-mask::$APPI_CONN"
+          echo "appi_connection_string=$APPI_CONN" >> "$GITHUB_OUTPUT"
+
+      - name: Set context
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
           kubeconfig: ${{ secrets.KUBE_CONFIG }}
 
-      - name: Create Namespace
+      - name: Create namespace
         run: kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create or Update Secrets
+      - name: Create secret
         run: |
-          kubectl create secret generic server-secrets \
-            --from-literal=JWT_SECRET=${{ secrets.JWT_SECRET }} \
+          kubectl create secret generic appinsights-secrets \
+            --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ steps.tf-outputs.outputs.appi_connection_string }}' \
             --namespace production \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy with Kustomize (Git SHA Tagging)
+      - name: Substitute secrets
+        env:
+          KEY_VAULT_NAME: ${{ steps.tf-outputs.outputs.key_vault_name }}
+          TENANT_ID: ${{ steps.tf-outputs.outputs.tenant_id }}
+          AKS_SECRETS_PROVIDER_CLIENT_ID: ${{ steps.tf-outputs.outputs.client_id }}
+        run: |
+          envsubst < kubernetes/base/secret-provider.yaml > /tmp/secret-provider.yaml
+          mv /tmp/secret-provider.yaml kubernetes/base/secret-provider.yaml
+
+      - name: Deploy
         run: |
           cd kubernetes/overlays/production
           kustomize edit set image devopscommerce.azurecr.io/server=${{ secrets.ACR_NAME }}.azurecr.io/server:${{ github.sha }}
           kustomize edit set image devopscommerce.azurecr.io/client=${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
           kubectl apply -k .
 
-      - name: Verify Rollout Status
+      - name: Rollout
         run: |
           kubectl rollout status deployment/server --namespace production --timeout=180s
           kubectl rollout status deployment/client --namespace production --timeout=180s
