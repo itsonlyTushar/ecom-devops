@@ -1,388 +1,312 @@
-# MERN E-Commerce DevOps & Cloud Infrastructure Platform
+# MERN E-Commerce Cloud Infrastructure
 
 [![Terraform](https://img.shields.io/badge/Terraform-1.3+-844FBA.svg?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-AKS-326CE5.svg?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![Azure](https://img.shields.io/badge/Microsoft_Azure-Cloud_Infra-0078D4.svg?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
-[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF.svg?logo=githubactions&logoColor=white)](https://github.com/features/actions)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Trivy](https://img.shields.io/badge/Security-Trivy_Scanning-1904DA.svg)](https://trivy.dev/)
-[![Kustomize](https://img.shields.io/badge/GitOps-Kustomize-326CE5.svg)](https://kustomize.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-This repository contains the complete, production-grade **DevOps Engineering & Infrastructure as Code (IaC)** ecosystem for a containerized multi-tier MERN (MongoDB, Express, React, Node.js) e-commerce application.
+Infrastructure code, Kubernetes manifests, and deployment pipelines for running a containerized MERN (MongoDB, Express, React, Node.js) application on Microsoft Azure.
 
-The project is dedicated to modern cloud engineering practices: provisioning automated cloud infrastructure on **Microsoft Azure** using **Terraform**, orchestrating scalable workloads on **Azure Kubernetes Service (AKS)** with **Kustomize**, implementing continuous integration and continuous deployment (**CI/CD**) with **GitHub Actions**, enforcing container vulnerability scanning with **Trivy**, integrating zero-trust secrets management with **Azure Key Vault CSI Driver**, and managing observability and FinOps with **Azure Monitor**, **Application Insights**, and **Azure Budgets**.
+The repository includes:
+- Terraform configurations for provisioning an Azure Virtual Network, Azure Kubernetes Service (AKS), Azure Key Vault, and monitoring resources.
+- Kubernetes manifests structured with Kustomize for staging and production environments.
+- A GitHub Actions workflow that runs tests, builds container images, scans for vulnerabilities, and deploys to AKS.
+- Docker configurations for the Express API and a multi-stage Nginx container for the React frontend.
 
 ---
 
-## Table of Contents
+## Table of contents
 
-- [DevOps Architecture](#devops-architecture)
-- [DevOps Capabilities & Highlights](#devops-capabilities--highlights)
-- [Repository Structure](#repository-structure)
-- [Infrastructure as Code (Terraform)](#infrastructure-as-code-terraform)
-  - [Provisioned Cloud Resources](#provisioned-cloud-resources)
-  - [Terraform Quickstart](#terraform-quickstart)
-  - [Input Variables Reference](#input-variables-reference)
-  - [Terraform Outputs](#terraform-outputs)
-- [CI/CD & DevSecOps Pipeline (GitHub Actions)](#cicd--devsecops-pipeline-github-actions)
-  - [Pipeline Architecture & Lifecycle](#pipeline-architecture--lifecycle)
-  - [Required Pipeline Secrets](#required-pipeline-secrets)
-- [Kubernetes & GitOps Configuration (K8s / Kustomize)](#kubernetes--gitops-configuration-k8s--kustomize)
-  - [Base Architecture](#base-architecture)
-  - [Environment Overlays (Staging vs Production)](#environment-overlays-staging-vs-production)
-  - [Azure Key Vault CSI Secrets Integration](#azure-key-vault-csi-secrets-integration)
-  - [Manual Kubernetes Deployment](#manual-kubernetes-deployment)
-- [Containerization & Local Dev Emulation](#containerization--local-dev-emulation)
-  - [Multi-Stage Builds & Nginx Hardening](#multi-stage-builds--nginx-hardening)
-  - [Local Testing with Docker Compose](#local-testing-with-docker-compose)
-- [Observability, Security & FinOps](#observability-security--finops)
-  - [Monitoring & Metric Alerting](#monitoring--metric-alerting)
-  - [DevSecOps Hardening](#devsecops-hardening)
-  - [FinOps & Budget Management](#finops--budget-management)
-- [Target Application Workload Overview](#target-application-workload-overview)
+- [Architecture summary](#architecture-summary)
+- [Repository structure](#repository-structure)
+- [Infrastructure (Terraform)](#infrastructure-terraform)
+  - [Provisioned resources](#provisioned-resources)
+  - [Terraform quickstart](#terraform-quickstart)
+  - [Input variables](#input-variables)
+  - [Outputs](#outputs)
+- [CI/CD pipeline (GitHub Actions)](#cicd-pipeline-github-actions)
+  - [Pipeline stages](#pipeline-stages)
+  - [Required secrets](#required-secrets)
+- [Kubernetes configuration](#kubernetes-configuration)
+  - [Base manifests](#base-manifests)
+  - [Overlays](#overlays)
+  - [Azure Key Vault CSI secrets](#azure-key-vault-csi-secrets)
+  - [Manual deployment](#manual-deployment)
+- [Containers and local development](#containers-and-local-development)
+  - [Docker builds](#docker-builds)
+  - [Local development with Docker Compose](#local-development-with-docker-compose)
+- [Monitoring and security](#monitoring-and-security)
+  - [Metrics and alerts](#metrics-and-alerts)
+  - [Network security and access control](#network-security-and-access-control)
+  - [Budget management](#budget-management)
+- [Application workload](#application-workload)
 - [License](#license)
 
 ---
 
-## DevOps Capabilities & Highlights
+## Architecture summary
 
-| Domain | Implementation | Description |
+| Component | Technology | Role |
 | :--- | :--- | :--- |
-| **Infrastructure as Code (IaC)** | **Terraform** (`>= 1.3.0`) | Declarative provisioning of Azure VNet, Subnets, NSG, AKS cluster, Key Vault, Log Analytics, Application Insights, and Cost Budgets. |
-| **Container Orchestration** | **Kubernetes (AKS) + Kustomize** | Declarative manifest management with base configuration and environment overlays (`staging` and `production`) featuring dynamic replicas patching. |
-| **Continuous Integration (CI)** | **GitHub Actions** | Automated parallel testing for Node.js API and Webpack frontend compilation on pull requests and pushes. |
-| **Continuous Delivery (CD)** | **GitHub Actions + Kustomize** | Automatic branch-based deployment (`develop` $\rightarrow$ staging, `master` $\rightarrow$ production) with automated rollout health checks. |
-| **Container Security & Scanning** | **Aquasecurity Trivy** | Shift-left container security scanning during CI/CD to detect `CRITICAL` and `HIGH` CVE vulnerabilities before deployment. |
-| **Secrets Management** | **Azure Key Vault CSI Driver** | Zero-trust secrets injection; Kubernetes pods retrieve runtime secrets (`JWT-SECRET`) directly from Key Vault without storing them in Git. |
-| **Network Security** | **Azure NSG + K8s RBAC** | Subnet-level network security group restricting traffic strictly to HTTP (`80`) and API (`3000`), paired with dedicated Kubernetes ServiceAccounts and Roles. |
-| **Observability & Alerting** | **Azure Monitor & App Insights** | Automated telemetry for Node.js workloads, OMS log analytics integration, and metric alerts for pod restarts and node CPU thresholds ($>80\%$). |
-| **Cloud FinOps** | **Azure Budgets & Cost Reporting** | Resource group spend capping with automated 80% and 100% threshold email notifications, accompanied by a comprehensive cost model (`DevOpsCostReport.xlsx`). |
+| Cloud provider | Microsoft Azure | Infrastructure hosting (South India region) |
+| Infrastructure as Code | Terraform (`>= 1.3.0`) | Provisions VNet, Subnets, NSG, AKS, Key Vault, and Log Analytics |
+| Orchestration | Kubernetes (AKS) | Runs application workloads across 2 worker nodes |
+| Config management | Kustomize | Manages base manifests and environment overlays |
+| CI/CD | GitHub Actions | Runs unit tests, builds images, and coordinates deployments |
+| Container registry | Azure Container Registry (ACR) | Stores versioned container images |
+| Vulnerability scanner | Trivy | Scans container images for operating system and package CVEs |
+| Secrets storage | Azure Key Vault + CSI Driver | Injects runtime secrets into pods via managed identity |
+| Web server | Nginx Alpine | Serves React static files and handles SPA routing and rate limiting |
+| Observability | Azure Monitor & App Insights | Collects container logs, API telemetry, and triggers metric alerts |
+| FinOps | Azure Budgets | Tracks monthly spend against a $50 threshold |
 
 ---
 
-## Repository Structure
+## Repository structure
 
 ```text
 mern-ecommerce/
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml             # Unified CI/CD pipeline (Test, Build, Trivy, Deploy)
-├── infra/                        # Infrastructure as Code (Terraform)
+│       └── ci-cd.yml             # CI/CD pipeline (Test, Build, Scan, Deploy)
+├── infra/                        # Terraform configurations
 │   ├── main.tf                   # VNet, Subnet, AKS Cluster, ACR Role Assignment
-│   ├── variables.tf              # Input variable definitions & defaults
+│   ├── variables.tf              # Input variable definitions
 │   ├── security.tf               # Azure Key Vault, Access Policies, NSG Rules
-│   ├── monitoring.tf             # Log Analytics, App Insights, Monitor Metric Alerts
-│   ├── cost-management.tf        # Azure Consumption Budget & FinOps notifications
-│   └── outputs.tf                # Connection strings, cluster IDs, client IDs
-├── kubernetes/                   # Kubernetes Manifests & GitOps Configuration
-│   ├── base/                     # Core reusable manifests
-│   │   ├── client.yaml           # Frontend Deployment & LoadBalancer Service (Port 80)
-│   │   ├── server.yaml           # Backend Deployment & LoadBalancer Service (Port 3000)
-│   │   ├── mongo.yaml            # MongoDB Deployment & Service (Port 27017)
-│   │   ├── rbac.yaml             # ServiceAccount, Role, and RoleBinding definitions
-│   │   ├── secret-provider.yaml  # Azure Key Vault CSI SecretProviderClass specification
-│   │   └── kustomization.yaml    # Base resource declaration
-│   └── overlays/                 # Environment-specific overlays
-│       ├── staging/              # Staging overlay (Namespace 'staging', 1 replica)
-│       │   ├── kustomization.yaml
-│       │   └── namespace.yaml
-│       └── production/           # Production overlay (Namespace 'production', HA 2 replicas)
-│           ├── kustomization.yaml
-│           ├── namespace.yaml
-│           └── replicas-patch.yaml
-├── client/                       # Target Workload: Frontend Client
-│   ├── Dockerfile                # Multi-stage production build (Node 18 -> Nginx Alpine)
-│   ├── nginx.conf                # Production reverse proxy, rate limiting, SPA routing
+│   ├── monitoring.tf             # Log Analytics, App Insights, Metric Alerts
+│   ├── cost-management.tf        # Azure Consumption Budget
+│   └── outputs.tf                # Cluster connection commands and resource IDs
+├── kubernetes/                   # Kubernetes manifests
+│   ├── base/                     # Shared base configurations
+│   │   ├── client.yaml           # Frontend Deployment & LoadBalancer Service (:80)
+│   │   ├── server.yaml           # Backend Deployment & LoadBalancer Service (:3000)
+│   │   ├── mongo.yaml            # MongoDB Deployment & Service (:27017)
+│   │   ├── rbac.yaml             # ServiceAccount and Role definitions
+│   │   ├── secret-provider.yaml  # Key Vault SecretProviderClass
+│   │   └── kustomization.yaml    # Base resource list
+│   └── overlays/                 # Environment overlays
+│       ├── staging/              # Staging overlay (namespace: staging, 1 replica)
+│       └── production/           # Production overlay (namespace: production, 2 replicas)
+├── client/                       # Frontend application
+│   ├── Dockerfile                # Multi-stage build (Node 18 -> Nginx Alpine)
+│   ├── nginx.conf                # Nginx reverse proxy and rate limiting rules
 │   └── package.json
-├── server/                       # Target Workload: Backend REST API
-│   ├── Dockerfile                # Lightweight Node 18 Bullseye production container
+├── server/                       # Backend REST API
+│   ├── Dockerfile                # Node 18 Bullseye-slim image
 │   ├── package.json
 │   └── server.js
-├── docker-compose.yml            # Local DevOps development & integration testing
-├── DevOpsCostReport.xlsx         # Cloud cost analysis & budget estimation report
+├── docker-compose.yml            # Local multi-container development environment
+├── DevOpsCostReport.xlsx         # Cost analysis spreadsheet
 └── README.md
 ```
 
 ---
 
-## Infrastructure as Code (Terraform)
+## Infrastructure (Terraform)
 
-The cloud infrastructure is located in [`infra/`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/infra) and managed via **Terraform** (`>= 1.3.0`) targeting Microsoft Azure.
+Infrastructure files are in the [`infra/`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/infra) directory.
 
-### Provisioned Cloud Resources
+### Provisioned resources
 
-1. **Virtual Network & Subnets:**
-   - VNet: `vnet-ecommerce-aks` (`10.0.0.0/16`) in Azure region `southindia`.
-   - Dedicated AKS Subnet: `subnet-aks` (`10.0.1.0/24`).
-2. **Network Security Group (NSG):**
-   - NSG: `nsg-ecommerce-aks` bound to `subnet-aks`.
-   - Security Rules:
-     - `AllowHTTPInbound` (Priority 100): Port `80` from Internet.
-     - `AllowServerAPIInbound` (Priority 110): Port `3000` from Internet.
-     - `AllowAzureLoadBalancerInbound` (Priority 120): Internal Azure load balancer traffic.
-     - `DenyAllOtherInbound` (Priority 4096): Explicit deny-all safeguard.
-3. **Azure Kubernetes Service (AKS):**
-   - Cluster: `aks-ecommerce-devops` with OIDC issuer enabled.
-   - Node Pool: 2 worker nodes (`Standard_B2s_v2`).
-   - Networking: Azure CNI plugin (`network_plugin = "azure"`), standard Load Balancer SKU.
-   - OMS Agent: Directly integrated with Log Analytics for cluster-wide logging.
-   - Key Vault CSI Driver: `key_vault_secrets_provider` with auto-rotation enabled.
-   - RBAC / Identity: System-assigned managed identity with `AcrPull` role on Azure Container Registry (`devopscommerce`).
-4. **Azure Key Vault:**
-   - Vault: `kv-ecommerce-devops` standard SKU.
-   - Automated secret generation: 48-character cryptographically secure `JWT-SECRET`.
-   - Access Policies: Dedicated policies for Terraform administrator and AKS CSI driver identity.
-5. **Observability & Metric Alerting:**
-   - Log Analytics Workspace: `log-ecommerce-devops` with 30-day retention.
-   - Application Insights: `appi-ecommerce-devops` configured for Node.js workloads.
-   - Action Group: `ag-ecommerce-alerts` with on-call email notification routing.
-   - Metric Alert 1: `alert-aks-cpu-high` triggers when node CPU usage exceeds 80% for 5 minutes.
-   - Metric Alert 2: `alert-server-pod-restarts` triggers when server pods restart more than twice in 15 minutes.
-6. **FinOps & Cost Management:**
-   - Consumption Budget: `budget-ecommerce-devops` configured at resource group scope.
-   - Alert notifications triggered automatically at 80% and 100% of the monthly threshold.
+1. Network: Virtual Network `vnet-ecommerce-aks` (`10.0.0.0/16`) in Azure region `southindia`, containing a dedicated subnet `subnet-aks` (`10.0.1.0/24`).
+2. Network Security Group: `nsg-ecommerce-aks` attached to `subnet-aks`. Inbound rules allow port 80 (HTTP) and port 3000 (API), with an explicit rule denying other inbound internet traffic.
+3. Azure Kubernetes Service (AKS): `aks-ecommerce-devops` cluster with 2 worker nodes (`Standard_B2s_v2`), Azure CNI networking, and an enabled Key Vault secrets provider add-on. An `AcrPull` role assignment allows the cluster to pull images directly from Azure Container Registry.
+4. Azure Key Vault: `kv-ecommerce-devops` generates and stores a 48-character secret (`JWT-SECRET`). Access policies are granted to Terraform and the AKS secrets provider identity.
+5. Observability: Log Analytics workspace `log-ecommerce-devops` (30-day retention) linked to Application Insights `appi-ecommerce-devops`. Includes two metric alerts: node CPU usage exceeding 80% for 5 minutes, and server pod restarting more than twice in 15 minutes.
+6. Cost management: An Azure consumption budget of $50/month configured with email notifications at 80% and 100% of the threshold.
 
-### Terraform Quickstart
+### Terraform quickstart
 
 ```bash
 cd infra
 
-# Initialize Terraform providers and backend
+# Initialize Terraform providers
 terraform init
 
-# Validate syntax and configuration integrity
+# Validate configuration syntax
 terraform validate
 
-# Generate and review execution plan
+# Create an execution plan
 terraform plan -var="alert_email=devops-alerts@yourdomain.com" -out=tfplan
 
-# Apply configuration to Azure
+# Apply changes to Azure
 terraform apply tfplan
 ```
 
-To destroy provisioned resources when no longer needed:
+To delete all provisioned resources:
+
 ```bash
 terraform destroy -var="alert_email=devops-alerts@yourdomain.com"
 ```
 
-### Input Variables Reference
+### Input variables
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `resource_group_name` | `string` | `"rg-ecommerce-devops"` | Azure Resource Group name. |
-| `location` | `string` | `"southindia"` | Azure target data center region. |
-| `acr_name` | `string` | `"devopscommerce"` | Target Azure Container Registry name. |
-| `key_vault_name` | `string` | `"kv-ecommerce-devops"` | Azure Key Vault instance name. |
-| `alert_email` | `string` | *Required* | Email address receiving alerts and budget warnings. |
-| `monthly_budget_amount` | `number` | `50` | Monthly spending limit in subscription currency. |
-| `cluster_name` | `string` | `"aks-ecommerce-devops"`| Managed AKS cluster name. |
-| `node_count` | `number` | `2` | Number of worker nodes in default pool. |
-| `vm_size` | `string` | `"Standard_B2s_v2"` | Virtual machine SKU for cluster worker nodes. |
-| `service_cidr` | `string` | `"10.1.0.0/16"` | CIDR range reserved for Kubernetes Services. |
-| `dns_service_ip` | `string` | `"10.1.0.10"` | CoreDNS IP address within the service CIDR. |
+| `resource_group_name` | `string` | `"rg-ecommerce-devops"` | Azure Resource Group name |
+| `location` | `string` | `"southindia"` | Target Azure region |
+| `acr_name` | `string` | `"devopscommerce"` | Target Azure Container Registry name |
+| `key_vault_name` | `string` | `"kv-ecommerce-devops"` | Azure Key Vault instance name |
+| `alert_email` | `string` | *Required* | Email address receiving alerts and budget warnings |
+| `monthly_budget_amount` | `number` | `50` | Monthly spending limit in subscription currency |
+| `cluster_name` | `string` | `"aks-ecommerce-devops"`| Managed AKS cluster name |
+| `node_count` | `number` | `2` | Number of worker nodes |
+| `vm_size` | `string` | `"Standard_B2s_v2"` | Virtual machine SKU for worker nodes |
+| `service_cidr` | `string` | `"10.1.0.0/16"` | CIDR range reserved for Kubernetes Services |
+| `dns_service_ip` | `string` | `"10.1.0.10"` | CoreDNS IP address within the service CIDR |
 
-### Terraform Outputs
+### Outputs
 
-Run `terraform output` to retrieve deployment metadata:
-- `connect_command`: Ready-to-run Azure CLI command to authenticate `kubectl` to the AKS cluster (`az aks get-credentials ...`).
-- `acr_login_server`: FQDN login URL for Azure Container Registry.
-- `key_vault_name`: Provisioned Azure Key Vault name.
-- `tenant_id`: Azure Active Directory tenant ID.
-- `aks_secrets_provider_client_id`: Client ID of the AKS managed identity used by the CSI secrets store driver.
-- `app_insights_connection_string`: Connection string for backend application telemetry.
+Run `terraform output` to retrieve deployment values:
+- `connect_command`: Azure CLI command to authenticate `kubectl` to the cluster (`az aks get-credentials ...`).
+- `acr_login_server`: Login URL for Azure Container Registry.
+- `key_vault_name`: Name of the provisioned Key Vault.
+- `tenant_id`: Azure tenant ID.
+- `aks_secrets_provider_client_id`: Client ID of the AKS managed identity used by the CSI driver.
+- `app_insights_connection_string`: Connection string for application telemetry.
 
 ---
 
-## CI/CD & DevSecOps Pipeline (GitHub Actions)
+## CI/CD pipeline (GitHub Actions)
 
-The repository uses a fully automated GitHub Actions pipeline defined in [`.github/workflows/ci-cd.yml`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/.github/workflows/ci-cd.yml).
+The workflow is defined in [`.github/workflows/ci-cd.yml`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/.github/workflows/ci-cd.yml).
 
-### Pipeline Architecture & Lifecycle
+### Pipeline stages
 
-The pipeline executes across 4 sequential and parallel stages:
+1. Tests and validation:
+   - The `server` job sets up Node.js 18 with npm caching, installs dependencies with `npm ci`, and runs unit tests (`npm test`).
+   - The `client` job sets up Node.js 18, installs dependencies, and runs Webpack production compilation (`npm run build`).
+2. Image build and push:
+   - Triggers on pushes to `develop` or `master` after both validation jobs succeed.
+   - Builds `server` and `client` Docker images, tags them with the commit SHA and `latest`, and pushes both to Azure Container Registry.
+3. Vulnerability scanning:
+   - Runs Trivy on both pushed container images to inspect OS packages and application dependencies for vulnerabilities.
+4. Deployment:
+   - Pushes to `develop` deploy to the `staging` namespace.
+   - Pushes to `master` deploy to the `production` namespace with 2 replicas per deployment.
+   - Both deployment jobs set the Kubernetes context, configure the Key Vault SecretProviderClass, update image tags using Kustomize, apply manifests, and wait for rollout completion with `kubectl rollout status`.
 
-1. **Continuous Integration (Parallel Jobs):**
-   - **`server` job:** Runs on Ubuntu Latest, checks out code, configures Node.js 18 with npm cache, installs dependencies via `npm ci`, and executes backend test suites via `npm test`.
-   - **`client` job:** Runs in parallel on Node.js 18, installs dependencies via `npm ci`, and compiles the Webpack production bundle (`npm run build`).
-2. **Container Build & Push (`acr-push`):**
-   - Triggers automatically upon successful push to `develop` or `master`.
-   - Uses `docker/setup-buildx-action` and authenticates to Azure Container Registry (`ACR_NAME.azurecr.io`).
-   - Builds both `server` and `client` container images using their respective Dockerfiles.
-   - Tags each image with both `latest` and the immutable Git commit SHA (`${{ github.sha }}`).
-3. **Shift-Left DevSecOps Scanning (Trivy):**
-   - Integrates `aquasecurity/trivy-action` directly after image compilation.
-   - Scans both `server` and `client` container images for OS and library dependencies.
-   - Flags and reports any vulnerabilities at `CRITICAL` or `HIGH` severity levels.
-4. **Continuous Deployment (GitOps with Kustomize):**
-   - **Staging Deployment (`deploy-staging`):** Triggers on push to `develop`.
-     - Targets the `staging` environment.
-     - Authenticates to AKS using `KUBE_CONFIG`.
-     - Creates namespace `staging` if not present.
-     - Creates Kubernetes secret `appinsights-secrets` with Application Insights telemetry keys.
-     - Performs dynamic variable substitution on `kubernetes/base/secret-provider.yaml`.
-     - Executes `kustomize edit set image` to inject the unique image tag `${{ github.sha }}`.
-     - Deploys via `kubectl apply -k kubernetes/overlays/staging`.
-     - Verifies rollout health with `kubectl rollout status` (180s timeout).
-   - **Production Deployment (`deploy-production`):** Triggers on push to `master`.
-     - Targets the `production` environment.
-     - Executes identical validation and deployment steps against `kubernetes/overlays/production`.
-     - Automatically provisions 2 replicas per pod for high availability via Kustomize patches.
+### Required secrets
 
-### Required Pipeline Secrets
-
-Configure the following secrets in **GitHub Repository Settings > Secrets and variables > Actions**:
+Set the following secrets in GitHub repository settings under Secrets and variables > Actions:
 
 | Secret Name | Description |
 | :--- | :--- |
-| `ACR_NAME` | Name of the Azure Container Registry (e.g., `devopscommerce`). |
-| `ACR_USERNAME` | Admin / Service Principal username for ACR authentication. |
-| `ACR_PASSWORD` | Access key / password for ACR authentication. |
-| `KUBE_CONFIG` | Base64-encoded or raw `kubeconfig` file for AKS cluster access. |
-| `APP_INSIGHTS_CONNECTION_STRING` | Instrumentation connection string from Application Insights. |
-| `KEY_VAULT_NAME` | Name of the Azure Key Vault (`kv-ecommerce-devops`). |
-| `AZURE_TENANT_ID` | Azure Active Directory Tenant ID. |
-| `AKS_SECRETS_PROVIDER_CLIENT_ID` | Client ID of the AKS Key Vault CSI managed identity. |
+| `ACR_NAME` | Azure Container Registry name (e.g. `devopscommerce`) |
+| `ACR_USERNAME` | Registry username or Service Principal client ID |
+| `ACR_PASSWORD` | Registry password or secret |
+| `KUBE_CONFIG` | Complete kubeconfig file content for AKS access |
+| `APP_INSIGHTS_CONNECTION_STRING` | Application Insights connection string |
+| `KEY_VAULT_NAME` | Azure Key Vault name (`kv-ecommerce-devops`) |
+| `AZURE_TENANT_ID` | Azure tenant ID |
+| `AKS_SECRETS_PROVIDER_CLIENT_ID` | Managed identity client ID for the CSI driver |
 
 ---
 
-## Kubernetes & GitOps Configuration (K8s / Kustomize)
+## Kubernetes configuration
 
-All Kubernetes definitions reside in [`kubernetes/`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/kubernetes) and are organized using the **Kustomize** pattern.
+Manifests in [`kubernetes/`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/kubernetes) use Kustomize to separate shared definitions from environment-specific settings.
 
-### Base Architecture
+### Base manifests
 
-- **`client.yaml`:**
-  - Deployment managing Nginx-served frontend pods.
-  - Service type `LoadBalancer` mapping incoming port `80` to container port `8080`.
-- **`server.yaml`:**
-  - Deployment managing Node.js API pods.
-  - Service type `LoadBalancer` exposing port `3000`.
-  - Environment variables configured for MongoDB (`mongodb://mongo:27017/mern_ecommerce`) and base routing.
-  - Secrets injection: mounts CSI Secrets Store volume at `/mnt/secrets-store` and sources `JWT_SECRET` and `APPLICATIONINSIGHTS_CONNECTION_STRING` directly into pod environment variables.
-- **`mongo.yaml`:**
-  - Deployment running MongoDB container with internal ClusterIP Service on port `27017`.
-- **`rbac.yaml`:**
-  - Enforces least-privilege access by creating a dedicated `ServiceAccount` (`server-sa`), a `Role` with scoped permissions (read-only for ConfigMaps), and a binding (`server-rolebinding`).
+- `client.yaml`: Nginx frontend deployment and a LoadBalancer service exposing port 80 (mapped to container port 8080).
+- `server.yaml`: Express API deployment and a LoadBalancer service exposing port 3000. Configured with database connection strings and secret volume mounts.
+- `mongo.yaml`: MongoDB deployment with an internal ClusterIP service on port 27017.
+- `rbac.yaml`: ServiceAccount, Role, and RoleBinding definitions for cluster permissions.
+- `secret-provider.yaml`: SecretProviderClass connecting pods to Azure Key Vault via the CSI driver.
 
-### Environment Overlays (Staging vs Production)
+### Overlays
 
-```text
-kubernetes/overlays/
-├── staging/
-│   ├── kustomization.yaml   # Sets namespace: staging, labels environment=staging
-│   └── namespace.yaml       # Namespace definition for staging
-└── production/
-    ├── kustomization.yaml   # Sets namespace: production, applies replicas-patch.yaml
-    ├── namespace.yaml       # Namespace definition for production
-    └── replicas-patch.yaml  # Scales client & server deployments to 2 replicas
-```
+- `staging`: Deploys into the `staging` namespace with 1 replica per service.
+- `production`: Deploys into the `production` namespace and applies `replicas-patch.yaml` to scale frontend and backend pods to 2 replicas.
 
-- **Staging:** Provides an isolated pre-production sandbox with 1 replica per service to minimize resource consumption.
-- **Production:** Enforces high-availability (HA) requirements by applying `replicas-patch.yaml` to scale both frontend and backend workloads to 2 replicas.
+### Azure Key Vault CSI secrets
 
-### Azure Key Vault CSI Secrets Integration
+The backend uses the Secrets Store CSI driver to retrieve runtime values:
+1. `secret-provider.yaml` configures the SecretProviderClass with the Key Vault name, tenant ID, and user-assigned managed identity.
+2. The CSI driver reads `JWT-SECRET` from Key Vault and creates a Kubernetes secret named `server-secrets`.
+3. The server pod mounts the volume and sources `JWT_SECRET` directly into its environment variables.
 
-Secrets management adheres to a zero-trust model using the **Secrets Store CSI Driver**:
-1. The `SecretProviderClass` defined in [`kubernetes/base/secret-provider.yaml`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/kubernetes/base/secret-provider.yaml) communicates with Azure Key Vault using the AKS Managed Identity.
-2. The CSI driver fetches `JWT-SECRET` from Key Vault and creates a native Kubernetes Secret (`server-secrets`).
-3. The server deployment mounts the volume and binds the secret directly to environment variables without ever writing secrets to disk or source control.
-
-### Manual Kubernetes Deployment
-
-To deploy manifests manually using `kubectl` and `kustomize`:
+### Manual deployment
 
 ```bash
-# Connect to your AKS cluster
+# Authenticate kubectl to AKS
 az aks get-credentials --resource-group rg-ecommerce-devops --name aks-ecommerce-devops
 
-# Deploy Staging Environment
+# Deploy to staging
 kubectl apply -k kubernetes/overlays/staging
-
-# Check Staging Rollout Status
 kubectl rollout status deployment/server -n staging
 kubectl rollout status deployment/client -n staging
 
-# Deploy Production Environment
+# Deploy to production
 kubectl apply -k kubernetes/overlays/production
-
-# Check Production Rollout Status
 kubectl rollout status deployment/server -n production
 kubectl rollout status deployment/client -n production
 
-# Inspect running pods and services
+# View running pods and services
 kubectl get pods,svc -n production
 ```
 
 ---
 
-## Containerization & Local Dev Emulation
+## Containers and local development
 
-### Multi-Stage Builds & Nginx Hardening
+### Docker builds
 
-#### Frontend Container (`client/Dockerfile`)
-The frontend leverages a two-stage build to ensure the smallest possible attack surface and minimal image size:
-1. **Build Stage (`node:18-bullseye-slim`):** Installs dependencies with `npm ci` and builds the optimized Webpack bundle into `/usr/src/app/dist`.
-2. **Runtime Stage (`nginx:alpine`):** Copies solely the compiled static assets into `/usr/share/nginx/html` and discards all Node.js runtimes and `node_modules`.
-3. **Nginx Security & Rate Limiting (`client/nginx.conf`):**
-   - Configures request rate limiting using `limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;` with a burst buffer of 70 requests.
-   - Provides SPA route resolution via `try_files $uri /index.html;` to eliminate 404s on browser reloads.
+- Frontend ([`client/Dockerfile`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/client/Dockerfile)): Multi-stage build using `node:18-bullseye-slim` to compile Webpack assets, then copying the `dist/` directory into `nginx:alpine` (~25MB). The Nginx configuration handles SPA routing via `try_files` and enforces a rate limit of 10 requests per second per IP.
+- Backend ([`server/Dockerfile`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/server/Dockerfile)): Single-stage container built from `node:18-bullseye-slim` running the Express application on port 3000.
 
-#### Backend Container (`server/Dockerfile`)
-The API container is built using `node:18-bullseye-slim`, leveraging clean caching, scoped dependency installations, and exposing port `3000`.
+### Local development with Docker Compose
 
-### Local Testing with Docker Compose
-
-For local integration testing of the container topology before pushing to cloud infrastructure:
+To run the complete stack locally:
 
 ```bash
-# Build and start all services (Client, API Server, MongoDB)
+# Build and start services
 docker-compose up --build
 
-# Verify running services
-# Storefront UI:    http://localhost:8080
-# REST API Health:  http://localhost:3000/api/health
+# Endpoints:
+# Frontend: http://localhost:8080
+# Backend:  http://localhost:3000
 
-# Stop and clean up containers and networks
+# Stop containers and remove network
 docker-compose down
 ```
 
-The `docker-compose.yml` runs all three containers on an isolated bridge network (`app-network`) and automatically seeds mock database records for initial testing.
+`docker-compose.yml` runs the client, API server, and MongoDB on a shared bridge network (`app-network`).
 
 ---
 
-## Observability, Security & FinOps
+## Monitoring and security
 
-### Monitoring & Metric Alerting
-- **Log Analytics:** Aggregates container stdout/stderr logs across all AKS pods for auditing and centralized log querying.
-- **Application Insights:** Ingests live telemetry, HTTP request timings, and error rates from the Node.js API.
-- **Azure Monitor Alerts:**
-  - `alert-aks-cpu-high`: Triggers P2 alert if cluster node CPU utilization averages $>80\%$ over 5 minutes.
-  - `alert-server-pod-restarts`: Triggers P1 critical alert if the API server experiences failure loops or crash restarts.
+### Metrics and alerts
 
-### DevSecOps Hardening
-- **Vulnerability Management:** Trivy automated image scanning catches vulnerabilities before containers are deployed.
-- **Zero-Trust Secrets:** No secrets stored in Git; secrets are generated via Terraform, vaulted in Azure Key Vault, and synced to pods on demand.
-- **Firewall & Network Isolation:** NSG blocks all non-essential ingress traffic. Internal database (`mongo`) has no public IP address and is accessible only within the cluster network.
-- **Kubernetes RBAC:** Pods execute using restricted `ServiceAccount` permissions rather than default cluster-admin privileges.
+- Centralized logs: AKS container logs stream to Log Analytics workspace `log-ecommerce-devops`.
+- Telemetry: Express requests, dependencies, and exceptions report to Application Insights.
+- Metric alert 1 (`alert-aks-cpu-high`): Fires when cluster node CPU utilization averages over 80% across a 5-minute window.
+- Metric alert 2 (`alert-server-pod-restarts`): Fires when backend pods restart more than twice within 15 minutes.
 
-### FinOps & Budget Management
-- **Budget Tracking:** Azure Consumption Budget enforces a \$50/month boundary on the resource group, sending automatic alerts at 80% (\$40) and 100% (\$50) spend marks.
-- **Cost Optimization Modeling:** Comprehensive architecture cost estimation and resource tier sizing is detailed in [`DevOpsCostReport.xlsx`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/DevOpsCostReport.xlsx).
+### Network security and access control
+
+- Network isolation: Subnet NSG denies all unsolicited inbound traffic except ports 80 and 3000. The MongoDB instance has no public IP and only accepts connections from within the cluster.
+- Pod identity: Key Vault credentials are read through an Azure Managed Identity; no long-lived passwords are saved in manifests or repositories.
+- Workload permissions: Server pods run with an explicit ServiceAccount (`server-sa`) rather than default permissions.
+
+### Budget management
+
+An Azure Consumption Budget monitors the resource group with a $50 monthly limit, sending alerts when actual spending reaches 80% ($40) and 100% ($50).
 
 ---
 
-## Target Application Workload Overview
+## Application workload
 
-While this project is focused on the DevOps and Cloud Infrastructure platform, the underlying workload running within this infrastructure is a full-featured MERN stack e-commerce system:
-
-- **Frontend:** React SPA with Redux state management, responsive UI, dynamic search, product filtering, and shopping cart workflows.
-- **Backend:** Node.js & Express REST API featuring JWT authentication, role-based access control (Admin, Merchant, Member), Socket.io real-time chat, and third-party integrations (Mailgun, Mailchimp, Azure Blob Storage).
-- **Database:** MongoDB with Mongoose ODM handling user identities, product catalog items, order state machines, and merchant records.
-- **Health Probes:** Exposes `/health` and `/api/health` endpoints consumed by Kubernetes Liveness/Readiness probes and Azure monitoring agents.
+The platform hosts an e-commerce application with the following components:
+- Frontend: Single-page application built with React, Redux, Bootstrap, and Webpack.
+- Backend: REST API built with Node.js, Express, Passport authentication (JWT, OAuth), and Socket.io.
+- Database: MongoDB with Mongoose schemas for products, users, carts, orders, and reviews.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is distributed under the [MIT License](LICENSE).

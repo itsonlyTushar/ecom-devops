@@ -11,7 +11,7 @@ variable "location" {
 }
 
 variable "acr_name" {
-  description = "Name of the Azure Container Registry created in Phase 4"
+  description = "Name of the Azure Container Registry"
   type        = string
   default     = "devopscommerce"
 }

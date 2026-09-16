@@ -28,7 +28,8 @@ resource "azurerm_virtual_network" "vnet" {
   address_space       = ["10.0.0.0/16"]
 
   tags = {
-    Environment = "DevOps-Capstone"
+    Environment = "production"
+    Project     = "mern-ecommerce"
     ManagedBy   = "Terraform"
   }
 }
@@ -74,8 +75,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   tags = {
-    Environment = "DevOps-Capstone"
-    Project     = "MERN-Ecommerce"
+    Environment = "production"
+    Project     = "mern-ecommerce"
     ManagedBy   = "Terraform"
   }
 }
