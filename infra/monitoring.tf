@@ -10,8 +10,8 @@ resource "azurerm_log_analytics_workspace" "main" {
   retention_in_days   = 30
 
   tags = {
-    Environment = "DevOps-Capstone"
-    Project     = "MERN-Ecommerce"
+    Environment = "production"
+    Project     = "mern-ecommerce"
     ManagedBy   = "Terraform"
   }
 }
@@ -24,8 +24,8 @@ resource "azurerm_application_insights" "main" {
   application_type    = "Node.JS"
 
   tags = {
-    Environment = "DevOps-Capstone"
-    Project     = "MERN-Ecommerce"
+    Environment = "production"
+    Project     = "mern-ecommerce"
     ManagedBy   = "Terraform"
   }
 }

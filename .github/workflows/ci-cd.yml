@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD
 
 on:
   push:
@@ -55,7 +55,7 @@ jobs:
         run: npm run build
 
   acr-push:
-    name: Docker
+    name: Docker Build & Push
     runs-on: ubuntu-latest
     needs: [server, client]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
@@ -93,7 +93,7 @@ jobs:
             ${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
             ${{ secrets.ACR_NAME }}.azurecr.io/client:latest
 
-      - name: Trivy server
+      - name: Scan server image (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ secrets.ACR_NAME }}.azurecr.io/server:${{ github.sha }}
@@ -103,7 +103,7 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
 
-      - name: Trivy client
+      - name: Scan client image (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
@@ -114,7 +114,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
   deploy-staging:
-    name: Staging
+    name: Deploy Staging
     runs-on: ubuntu-latest
     needs: [acr-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
@@ -130,7 +130,7 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Set context
+      - name: Set AKS context
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
@@ -139,14 +139,14 @@ jobs:
       - name: Create namespace
         run: kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create secret
+      - name: Create telemetry secret
         run: |
           kubectl create secret generic appinsights-secrets \
             --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ secrets.APP_INSIGHTS_CONNECTION_STRING }}' \
             --namespace staging \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Substitute secrets
+      - name: Configure SecretProviderClass
         env:
           KEY_VAULT_NAME: ${{ secrets.KEY_VAULT_NAME }}
           TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -162,13 +162,13 @@ jobs:
           kustomize edit set image devopscommerce.azurecr.io/client=${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
           kubectl apply -k .
 
-      - name: Rollout
+      - name: Verify rollout
         run: |
           kubectl rollout status deployment/server --namespace staging --timeout=180s
           kubectl rollout status deployment/client --namespace staging --timeout=180s
 
   deploy-production:
-    name: Production
+    name: Deploy Production
     runs-on: ubuntu-latest
     needs: [acr-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -184,7 +184,7 @@ jobs:
       - name: Setup Kustomize
         uses: imranismail/setup-kustomize@v2
 
-      - name: Set context
+      - name: Set AKS context
         uses: azure/k8s-set-context@v4
         with:
           method: kubeconfig
@@ -193,14 +193,14 @@ jobs:
       - name: Create namespace
         run: kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Create secret
+      - name: Create telemetry secret
         run: |
           kubectl create secret generic appinsights-secrets \
             --from-literal=APPLICATIONINSIGHTS_CONNECTION_STRING='${{ secrets.APP_INSIGHTS_CONNECTION_STRING }}' \
             --namespace production \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Substitute secrets
+      - name: Configure SecretProviderClass
         env:
           KEY_VAULT_NAME: ${{ secrets.KEY_VAULT_NAME }}
           TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -216,7 +216,7 @@ jobs:
           kustomize edit set image devopscommerce.azurecr.io/client=${{ secrets.ACR_NAME }}.azurecr.io/client:${{ github.sha }}
           kubectl apply -k .
 
-      - name: Rollout
+      - name: Verify rollout
         run: |
           kubectl rollout status deployment/server --namespace production --timeout=180s
           kubectl rollout status deployment/client --namespace production --timeout=180s
