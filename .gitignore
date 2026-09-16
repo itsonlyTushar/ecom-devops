@@ -17,11 +17,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local working notes
-DOC.md
-ROADMAP.md
-ecommerce_cicd_capstone_project.md
-
 # terraform
 **/.terraform/*
 *.tfstate
