@@ -1,374 +1,388 @@
-# 🛒 MERN Stack E-Commerce & DevOps Platform
+# MERN E-Commerce DevOps & Cloud Infrastructure Platform
 
-[![Node.js](https://img.shields.io/badge/Node.js-16.x-green.svg?logo=node.js)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-16.8-61DAFB.svg?logo=react)](https://reactjs.org/)
-[![Express](https://img.shields.io/badge/Express-4.17-black.svg?logo=express)](https://expressjs.com/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-brightgreen.svg?logo=mongodb)](https://www.mongodb.com/)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg?logo=docker)](https://www.docker.com/)
-[![Nginx](https://img.shields.io/badge/Nginx-Reverse_Proxy-009639.svg?logo=nginx)](https://nginx.org/)
-[![Azure Native](https://img.shields.io/badge/Azure-Native-0078D4.svg?logo=microsoftazure)](https://azure.microsoft.com/)
+[![Terraform](https://img.shields.io/badge/Terraform-1.3+-844FBA.svg?logo=terraform&logoColor=white)](https://www.terraform.io/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-AKS-326CE5.svg?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Azure](https://img.shields.io/badge/Microsoft_Azure-Cloud_Infra-0078D4.svg?logo=microsoftazure&logoColor=white)](https://azure.microsoft.com/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF.svg?logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![Docker](https://img.shields.io/badge/Docker-Containerized-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Trivy](https://img.shields.io/badge/Security-Trivy_Scanning-1904DA.svg)](https://trivy.dev/)
+[![Kustomize](https://img.shields.io/badge/GitOps-Kustomize-326CE5.svg)](https://kustomize.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A robust, enterprise-grade full-stack e-commerce web application built on the **MERN** (MongoDB, Express, React, Node.js) stack, fully containerized and production-ready using **Docker**, **Nginx**, and modern **DevOps** principles.
+This repository contains the complete, production-grade **DevOps Engineering & Infrastructure as Code (IaC)** ecosystem for a containerized multi-tier MERN (MongoDB, Express, React, Node.js) e-commerce application.
+
+The project is dedicated to modern cloud engineering practices: provisioning automated cloud infrastructure on **Microsoft Azure** using **Terraform**, orchestrating scalable workloads on **Azure Kubernetes Service (AKS)** with **Kustomize**, implementing continuous integration and continuous deployment (**CI/CD**) with **GitHub Actions**, enforcing container vulnerability scanning with **Trivy**, integrating zero-trust secrets management with **Azure Key Vault CSI Driver**, and managing observability and FinOps with **Azure Monitor**, **Application Insights**, and **Azure Budgets**.
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-- [Key Features](#-key-features)
-- [Architecture & Tech Stack](#-architecture--tech-stack)
-- [Repository Structure](#-repository-structure)
-- [Prerequisites](#-prerequisites)
-- [Environment Configuration](#-environment-configuration)
-- [Quick Start: Docker (Recommended)](#-quick-start-docker-recommended)
-- [Manual Local Development](#-manual-local-development)
-- [Database Seeding](#-database-seeding)
-- [DevOps & Containerization Architecture](#-devops--containerization-architecture)
-- [Azure Native Architecture & Deployment](#-azure-native-architecture--deployment)
-- [API Overview](#-api-overview)
-- [NPM Scripts Reference](#-npm-scripts-reference)
-- [License](#-license)
-
----
-
-## ✨ Key Features
-
-### 👤 Authentication & Role-Based Access Control (RBAC)
-- **Multi-Role System:** Customer / Member, Merchant, and Administrator roles with protected routes and actions.
-- **Authentication Providers:** Email/Password authentication with JWT (JSON Web Tokens) and bcrypt password hashing.
-- **Social OAuth 2.0:** Single Sign-On via Google and Facebook (Passport.js).
-- **Account Management:** Password reset workflows via secure email tokens, profile updating, and address management.
-
-### 🛍️ Product Catalog & Shopping Experience
-- **Catalog Management:** Filter and sort products by category, brand, price range, and customer review ratings.
-- **Search & Auto-Suggest:** Instant keyword search with autocomplete and highlighting.
-- **Cart & Wishlist:** Real-time cart state management with Redux, tax and shipping calculations, and persistent wishlist.
-- **Order Processing:** Checkout pipeline with multi-step order placement, invoice generation, status lifecycle tracking (`Not Processed`, `Processing`, `Shipped`, `Delivered`, `Cancelled`).
-
-### 🏬 Multi-Vendor / Merchant Workflow
-- **Merchant Onboarding:** Merchants can apply to sell products directly through the platform.
-- **Brand & Inventory Control:** Merchant-level dashboard for inventory tracking and catalog management.
-
-### 💬 Real-Time Communication & Marketing
-- **Live Support Chat:** Real-time customer support chat powered by **Socket.io**.
-- **Email Marketing:** Newsletter subscriptions integrated with **Mailchimp**.
-- **Transactional Emails:** Order confirmations and notifications powered by **Mailgun**.
-- **Asset Storage:** Cloud product image uploads handled with **Azure Blob Storage** and Multer.
+- [DevOps Architecture](#devops-architecture)
+- [DevOps Capabilities & Highlights](#devops-capabilities--highlights)
+- [Repository Structure](#repository-structure)
+- [Infrastructure as Code (Terraform)](#infrastructure-as-code-terraform)
+  - [Provisioned Cloud Resources](#provisioned-cloud-resources)
+  - [Terraform Quickstart](#terraform-quickstart)
+  - [Input Variables Reference](#input-variables-reference)
+  - [Terraform Outputs](#terraform-outputs)
+- [CI/CD & DevSecOps Pipeline (GitHub Actions)](#cicd--devsecops-pipeline-github-actions)
+  - [Pipeline Architecture & Lifecycle](#pipeline-architecture--lifecycle)
+  - [Required Pipeline Secrets](#required-pipeline-secrets)
+- [Kubernetes & GitOps Configuration (K8s / Kustomize)](#kubernetes--gitops-configuration-k8s--kustomize)
+  - [Base Architecture](#base-architecture)
+  - [Environment Overlays (Staging vs Production)](#environment-overlays-staging-vs-production)
+  - [Azure Key Vault CSI Secrets Integration](#azure-key-vault-csi-secrets-integration)
+  - [Manual Kubernetes Deployment](#manual-kubernetes-deployment)
+- [Containerization & Local Dev Emulation](#containerization--local-dev-emulation)
+  - [Multi-Stage Builds & Nginx Hardening](#multi-stage-builds--nginx-hardening)
+  - [Local Testing with Docker Compose](#local-testing-with-docker-compose)
+- [Observability, Security & FinOps](#observability-security--finops)
+  - [Monitoring & Metric Alerting](#monitoring--metric-alerting)
+  - [DevSecOps Hardening](#devsecops-hardening)
+  - [FinOps & Budget Management](#finops--budget-management)
+- [Target Application Workload Overview](#target-application-workload-overview)
+- [License](#license)
 
 ---
 
-## 🏗 Architecture & Tech Stack
+## DevOps Capabilities & Highlights
 
-```mermaid
-graph TD
-    Client[React Client SPA / Port 8080] -->|HTTP / REST| Nginx[Nginx Reverse Proxy]
-    Nginx -->|Proxy Requests| Server[Express API Server / Port 3000]
-    Client -.->|WebSocket| Socket[Socket.io Real-Time Chat]
-    Socket --> Server
-    Server --> MongoDB[(MongoDB Database / Port 27017)]
-    Server --> AzureStorage[(Azure Blob Storage)]
-    Server --> Mailgun[Mailgun Email Service]
-    Server --> Mailchimp[Mailchimp Newsletter]
-```
-
-### Frontend
-- **Framework:** React.js 16.8 (Hooks & Class components)
-- **State Management:** Redux + Redux-Thunk + Connected-React-Router
-- **Styling & UI:** Reactstrap (Bootstrap 4), SCSS, FontAwesome
-- **Bundler:** Webpack 4 with production minification, asset pipeline, and PWA manifest support
-
-### Backend
-- **Runtime:** Node.js (v16 LTS) & Express.js
-- **Database:** MongoDB with Mongoose ODM
-- **Security:** Helmet, CORS, Data Sanitization (DOMPurify, Validator.js)
-- **Authentication:** Passport.js (JWT, Google OAuth 2.0, Facebook)
-- **Real-time:** Socket.io
-
-### DevOps & Infrastructure
-- **Containerization:** Docker with multi-stage build optimization
-- **Web Server & Proxy:** Nginx Alpine with built-in rate limiting (`limit_req_zone`) and SPA route fallback
-- **Orchestration:** Docker Compose (multi-service: client, server, mongodb)
+| Domain | Implementation | Description |
+| :--- | :--- | :--- |
+| **Infrastructure as Code (IaC)** | **Terraform** (`>= 1.3.0`) | Declarative provisioning of Azure VNet, Subnets, NSG, AKS cluster, Key Vault, Log Analytics, Application Insights, and Cost Budgets. |
+| **Container Orchestration** | **Kubernetes (AKS) + Kustomize** | Declarative manifest management with base configuration and environment overlays (`staging` and `production`) featuring dynamic replicas patching. |
+| **Continuous Integration (CI)** | **GitHub Actions** | Automated parallel testing for Node.js API and Webpack frontend compilation on pull requests and pushes. |
+| **Continuous Delivery (CD)** | **GitHub Actions + Kustomize** | Automatic branch-based deployment (`develop` $\rightarrow$ staging, `master` $\rightarrow$ production) with automated rollout health checks. |
+| **Container Security & Scanning** | **Aquasecurity Trivy** | Shift-left container security scanning during CI/CD to detect `CRITICAL` and `HIGH` CVE vulnerabilities before deployment. |
+| **Secrets Management** | **Azure Key Vault CSI Driver** | Zero-trust secrets injection; Kubernetes pods retrieve runtime secrets (`JWT-SECRET`) directly from Key Vault without storing them in Git. |
+| **Network Security** | **Azure NSG + K8s RBAC** | Subnet-level network security group restricting traffic strictly to HTTP (`80`) and API (`3000`), paired with dedicated Kubernetes ServiceAccounts and Roles. |
+| **Observability & Alerting** | **Azure Monitor & App Insights** | Automated telemetry for Node.js workloads, OMS log analytics integration, and metric alerts for pod restarts and node CPU thresholds ($>80\%$). |
+| **Cloud FinOps** | **Azure Budgets & Cost Reporting** | Resource group spend capping with automated 80% and 100% threshold email notifications, accompanied by a comprehensive cost model (`DevOpsCostReport.xlsx`). |
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 mern-ecommerce/
-├── client/                     # Frontend React SPA
-│   ├── app/                    # React components, containers, redux actions/reducers
-│   ├── public/                 # Static assets, favicon, index.html template
-│   ├── webpack/                # Development & Production Webpack configurations
-│   ├── Dockerfile              # Multi-stage production build (Node -> Nginx)
-│   ├── nginx.conf              # Nginx server config with rate limiting & SPA routing
-│   └── package.json            # Frontend dependencies & build scripts
-├── server/                     # Backend Express REST API
-│   ├── config/                 # Passport, MongoDB, and environment configuration
-│   ├── constants/              # Application enumerations (roles, order statuses)
-│   ├── middleware/             # Role verification, JWT authentication middleware
-│   ├── models/                 # Mongoose schemas (User, Product, Order, etc.)
-│   ├── routes/                 # RESTful API route definitions
-│   ├── services/               # Integrations (Azure Storage, Mailgun, Mailchimp)
-│   ├── socket/                 # Socket.io chat handlers
-│   ├── utils/                  # DB connection & Faker database seed scripts
-│   ├── Dockerfile              # Node.js backend container definition
-│   └── package.json            # Backend dependencies & scripts
-├── docker-compose.yml          # Multi-container orchestration specification
-├── package.json                # Root orchestration scripts (dev, install, seed)
-└── README.md                   # Project documentation
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml             # Unified CI/CD pipeline (Test, Build, Trivy, Deploy)
+├── infra/                        # Infrastructure as Code (Terraform)
+│   ├── main.tf                   # VNet, Subnet, AKS Cluster, ACR Role Assignment
+│   ├── variables.tf              # Input variable definitions & defaults
+│   ├── security.tf               # Azure Key Vault, Access Policies, NSG Rules
+│   ├── monitoring.tf             # Log Analytics, App Insights, Monitor Metric Alerts
+│   ├── cost-management.tf        # Azure Consumption Budget & FinOps notifications
+│   └── outputs.tf                # Connection strings, cluster IDs, client IDs
+├── kubernetes/                   # Kubernetes Manifests & GitOps Configuration
+│   ├── base/                     # Core reusable manifests
+│   │   ├── client.yaml           # Frontend Deployment & LoadBalancer Service (Port 80)
+│   │   ├── server.yaml           # Backend Deployment & LoadBalancer Service (Port 3000)
+│   │   ├── mongo.yaml            # MongoDB Deployment & Service (Port 27017)
+│   │   ├── rbac.yaml             # ServiceAccount, Role, and RoleBinding definitions
+│   │   ├── secret-provider.yaml  # Azure Key Vault CSI SecretProviderClass specification
+│   │   └── kustomization.yaml    # Base resource declaration
+│   └── overlays/                 # Environment-specific overlays
+│       ├── staging/              # Staging overlay (Namespace 'staging', 1 replica)
+│       │   ├── kustomization.yaml
+│       │   └── namespace.yaml
+│       └── production/           # Production overlay (Namespace 'production', HA 2 replicas)
+│           ├── kustomization.yaml
+│           ├── namespace.yaml
+│           └── replicas-patch.yaml
+├── client/                       # Target Workload: Frontend Client
+│   ├── Dockerfile                # Multi-stage production build (Node 18 -> Nginx Alpine)
+│   ├── nginx.conf                # Production reverse proxy, rate limiting, SPA routing
+│   └── package.json
+├── server/                       # Target Workload: Backend REST API
+│   ├── Dockerfile                # Lightweight Node 18 Bullseye production container
+│   ├── package.json
+│   └── server.js
+├── docker-compose.yml            # Local DevOps development & integration testing
+├── DevOpsCostReport.xlsx         # Cloud cost analysis & budget estimation report
+└── README.md
 ```
 
 ---
 
-## ⚙️ Prerequisites
+## Infrastructure as Code (Terraform)
 
-Before getting started, make sure you have the following installed on your machine:
+The cloud infrastructure is located in [`infra/`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/infra) and managed via **Terraform** (`>= 1.3.0`) targeting Microsoft Azure.
 
-- [Git](https://git-scm.com/)
-- [Node.js](https://nodejs.org/) (v16.x recommended) and `npm` (v7+)
-- [Docker](https://www.docker.com/) & [Docker Compose](https://docs.docker.com/compose/) (for containerized setup)
-- [MongoDB](https://www.mongodb.com/) (if running locally without Docker)
+### Provisioned Cloud Resources
 
----
+1. **Virtual Network & Subnets:**
+   - VNet: `vnet-ecommerce-aks` (`10.0.0.0/16`) in Azure region `southindia`.
+   - Dedicated AKS Subnet: `subnet-aks` (`10.0.1.0/24`).
+2. **Network Security Group (NSG):**
+   - NSG: `nsg-ecommerce-aks` bound to `subnet-aks`.
+   - Security Rules:
+     - `AllowHTTPInbound` (Priority 100): Port `80` from Internet.
+     - `AllowServerAPIInbound` (Priority 110): Port `3000` from Internet.
+     - `AllowAzureLoadBalancerInbound` (Priority 120): Internal Azure load balancer traffic.
+     - `DenyAllOtherInbound` (Priority 4096): Explicit deny-all safeguard.
+3. **Azure Kubernetes Service (AKS):**
+   - Cluster: `aks-ecommerce-devops` with OIDC issuer enabled.
+   - Node Pool: 2 worker nodes (`Standard_B2s_v2`).
+   - Networking: Azure CNI plugin (`network_plugin = "azure"`), standard Load Balancer SKU.
+   - OMS Agent: Directly integrated with Log Analytics for cluster-wide logging.
+   - Key Vault CSI Driver: `key_vault_secrets_provider` with auto-rotation enabled.
+   - RBAC / Identity: System-assigned managed identity with `AcrPull` role on Azure Container Registry (`devopscommerce`).
+4. **Azure Key Vault:**
+   - Vault: `kv-ecommerce-devops` standard SKU.
+   - Automated secret generation: 48-character cryptographically secure `JWT-SECRET`.
+   - Access Policies: Dedicated policies for Terraform administrator and AKS CSI driver identity.
+5. **Observability & Metric Alerting:**
+   - Log Analytics Workspace: `log-ecommerce-devops` with 30-day retention.
+   - Application Insights: `appi-ecommerce-devops` configured for Node.js workloads.
+   - Action Group: `ag-ecommerce-alerts` with on-call email notification routing.
+   - Metric Alert 1: `alert-aks-cpu-high` triggers when node CPU usage exceeds 80% for 5 minutes.
+   - Metric Alert 2: `alert-server-pod-restarts` triggers when server pods restart more than twice in 15 minutes.
+6. **FinOps & Cost Management:**
+   - Consumption Budget: `budget-ecommerce-devops` configured at resource group scope.
+   - Alert notifications triggered automatically at 80% and 100% of the monthly threshold.
 
-## 🔑 Environment Configuration
+### Terraform Quickstart
 
-### 1. Server Configuration (`server/.env`)
-
-Create a `.env` file in the `server/` directory (refer to `server/.env.example`):
-
-```env
-# Application & Database
-PORT=3000
-BASE_API_URL=api
-CLIENT_URL=http://localhost:8080
-MONGO_URI=mongodb://127.0.0.1:27017/mern_ecommerce
-JWT_SECRET=your_jwt_secret_key_here
-
-# Mailgun (Transactional Emails)
-MAILGUN_KEY=your_mailgun_api_key
-MAILGUN_DOMAIN=your_mailgun_domain
-MAILGUN_EMAIL_SENDER=noreply@yourdomain.com
-
-# Mailchimp (Newsletter)
-MAILCHIMP_KEY=your_mailchimp_key
-MAILCHIMP_LIST_KEY=your_mailchimp_audience_id
-
-# OAuth Credentials (Optional for local testing)
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
-
-FACEBOOK_CLIENT_ID=your_facebook_client_id
-FACEBOOK_CLIENT_SECRET=your_facebook_client_secret
-FACEBOOK_CALLBACK_URL=http://localhost:3000/api/auth/facebook/callback
-
-# Azure Blob Storage (Optional for product image uploads)
-AZURE_STORAGE_CONNECTION_STRING=your_azure_storage_connection_string
-# Or use Account Name & Key
-AZURE_STORAGE_ACCOUNT_NAME=your_storage_account_name
-AZURE_STORAGE_ACCOUNT_KEY=your_storage_account_key
-AZURE_STORAGE_CONTAINER_NAME=products
-```
-
-### 2. Client Configuration (`client/.env`)
-
-Create a `.env` file in the `client/` directory (refer to `client/.env.example`):
-
-```env
-API_URL=http://localhost:3000/api
-# Optional: Set custom Socket.io server URL for Azure deployments
-SOCKET_URL=http://localhost:3000
-```
-
----
-
-## 🚀 Quick Start: Docker (Recommended)
-
-The easiest way to run the full stack with zero manual dependency headaches is via Docker Compose:
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/mohamedsamara/mern-ecommerce.git
-   cd mern-ecommerce
-   ```
-
-2. **Launch all containers:**
-   ```bash
-   docker-compose up --build
-   ```
-
-   This automatically performs:
-   - Starts MongoDB on port `27017`.
-   - Builds the Node.js API, seeds the database with an admin user (`admin@example.com` / `admin123`) and 100 mock products, and exposes it on port `3000`.
-   - Runs a multi-stage build of the React app and serves it via Nginx on port `8080`.
-
-3. **Access the application:**
-   - **Storefront:** [http://localhost:8080](http://localhost:8080)
-   - **Backend API:** [http://localhost:3000/api](http://localhost:3000/api)
-   - **Admin Credentials:** `admin@example.com` / `admin123`
-
-4. **Stop the containers:**
-   ```bash
-   docker-compose down
-   ```
-
----
-
-## 💻 Manual Local Development
-
-If you wish to develop without Docker:
-
-### 1. Install Dependencies
-Run the root post-install script to install both client and server dependencies:
 ```bash
-npm run postinstall
+cd infra
+
+# Initialize Terraform providers and backend
+terraform init
+
+# Validate syntax and configuration integrity
+terraform validate
+
+# Generate and review execution plan
+terraform plan -var="alert_email=devops-alerts@yourdomain.com" -out=tfplan
+
+# Apply configuration to Azure
+terraform apply tfplan
 ```
 
-### 2. Start MongoDB
-Ensure MongoDB is running locally on port `27017`:
+To destroy provisioned resources when no longer needed:
 ```bash
-mongod
+terraform destroy -var="alert_email=devops-alerts@yourdomain.com"
 ```
 
-### 3. Seed Mock Data (Optional but recommended)
-Populate your database with an administrator account, categories, brands, and mock products:
-```bash
-cd server
-npm run seed:db admin@example.com admin123
-cd ..
-```
+### Input Variables Reference
 
-### 4. Run Development Servers
-Start both client and server simultaneously using `npm-run-all`:
-```bash
-npm run dev
-```
-
-Alternatively, run each in separate terminals:
-- **Server:**
-  ```bash
-  cd server
-  npm run dev
-  ```
-- **Client:**
-  ```bash
-  cd client
-  npm run dev
-  ```
-
----
-
-## 🌱 Database Seeding
-
-The database seed utility uses `@faker-js/faker` to generate mock data for fast development and testing.
-
-To run the seed script manually:
-```bash
-cd server
-npm run seed:db <admin-email> <admin-password>
-```
-
-**What gets created:**
-- 1 Admin account with the credentials passed in.
-- 10 Product Categories.
-- 10 Brand Entities.
-- 100 Products linked with random categories, brands, prices, and SKUs.
-
----
-
-## 🐳 DevOps & Containerization Architecture
-
-### Multi-Stage Dockerfile (`client/Dockerfile`)
-The client uses a multi-stage Docker build to keep the production image lightweight and fast:
-1. **Stage 1 (Build):** Compiles the Webpack production bundle in a `node:16.20.2-buster-slim` container.
-2. **Stage 2 (Serve):** Copies only the compiled `/dist` directory into an `nginx:alpine` image, dropping all build-time dependencies and node_modules.
-
-### Nginx Hardening & Rate Limiting (`client/nginx.conf`)
-- **Rate Limiting:** Protects the frontend from abuse using `limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;` with a burst allowance of 70.
-- **Client Routing:** Uses `try_files $uri /index.html;` to properly support React Router single-page navigation without 404 errors on page refresh.
-
-### Docker Compose Network Topology
-All containers (`client`, `server`, `mongo`) communicate through an internal isolated bridge network (`app-network`), ensuring MongoDB is not exposed externally in production settings.
-
----
-
-## ☁️ Azure Native Architecture & Deployment
-
-The backend is built to run as an **Azure-native** application with deep integration into Azure PaaS and Serverless offerings.
-
-### 1. Azure Blob Storage (Media Assets)
-Product image uploads use `@azure/storage-blob` instead of third-party cloud SDKs:
-- **Authentication:** Supports standard connection strings (`AZURE_STORAGE_CONNECTION_STRING`) or Managed Identity / Account Key credentials (`AZURE_STORAGE_ACCOUNT_NAME` & `AZURE_STORAGE_ACCOUNT_KEY`).
-- **Container Management:** Automatically provisions the designated blob container (defaults to `products`) with public blob read access (`access: 'blob'`) to enable direct browser loading of uploaded assets.
-- **Graceful Fallback:** If Azure credentials are not provided during local development, the application issues a diagnostic warning and proceeds without breaking.
-
-### 2. Azure App Service / Azure Container Apps
-The backend is container-ready for Azure PaaS hosting:
-- **Automatic Port Binding:** Dynamic port assignment via `process.env.PORT` ensures seamless compatibility with Azure App Service (which maps incoming traffic via internal ports) and Azure Container Apps.
-- **Health Check Integration:** Built-in `/health` and `/api/health` probes supply status and uptime JSON for Azure Liveness and Readiness probes.
-- **WebSockets / Socket.io:** Azure App Service WebSockets can be enabled under **Configuration > General settings > Web sockets: On**.
-
-### 3. Database: Azure Cosmos DB (MongoDB API)
-The database layer uses standard Mongoose connection strings, allowing drop-in connection to **Azure Cosmos DB for MongoDB** with zero code changes:
-```env
-MONGO_URI=mongodb://<cosmos-account>:<key>@<cosmos-account>.mongo.cosmos.azure.com:10255/mern_ecommerce?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@<cosmos-account>@
-```
-
-### 4. Client Wiring for Azure
-When hosting the client on **Azure Static Web Apps** or an independent Azure App Service:
-- Configure `API_URL` to point to the backend URL (e.g. `https://<backend-app>.azurewebsites.net/api`).
-- Configure `SOCKET_URL` to point to the real-time chat endpoint (e.g. `https://<backend-app>.azurewebsites.net`).
-
----
-
-## 🔌 API Overview
-
-All API endpoints are prefixed by `/api`:
-
-| Method | Endpoint | Description | Access |
+| Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/health` | Cloud health probe / service uptime | Public |
-| `GET` | `/api/health` | API health probe / service uptime | Public |
-| `POST` | `/api/auth/register` | Register new user | Public |
-| `POST` | `/api/auth/login` | Login user & return JWT | Public |
-| `GET` | `/api/auth/google` | Google OAuth authentication | Public |
-| `GET` | `/api/auth/facebook` | Facebook OAuth authentication | Public |
-| `GET` | `/api/product` | List active products (paginated, filtered) | Public |
-| `GET` | `/api/product/item/:slug` | Retrieve single product by slug | Public |
-| `POST` | `/api/product/add` | Create new product | Merchant / Admin |
-| `PUT` | `/api/product/:id` | Update product details | Merchant / Admin |
-| `GET` | `/api/category/list` | List all product categories | Public |
-| `GET` | `/api/brand/list` | List all brands | Public |
-| `POST` | `/api/cart/add` | Add items to cart | Authenticated |
-| `POST` | `/api/order/add` | Place a new order | Authenticated |
-| `GET` | `/api/order/me` | Fetch user order history | Authenticated |
-| `POST` | `/api/merchant/add` | Submit merchant application | Authenticated |
-| `POST` | `/api/contact/add` | Submit contact form message | Public |
-| `POST` | `/api/newsletter/subscribe`| Subscribe email to newsletter | Public |
+| `resource_group_name` | `string` | `"rg-ecommerce-devops"` | Azure Resource Group name. |
+| `location` | `string` | `"southindia"` | Azure target data center region. |
+| `acr_name` | `string` | `"devopscommerce"` | Target Azure Container Registry name. |
+| `key_vault_name` | `string` | `"kv-ecommerce-devops"` | Azure Key Vault instance name. |
+| `alert_email` | `string` | *Required* | Email address receiving alerts and budget warnings. |
+| `monthly_budget_amount` | `number` | `50` | Monthly spending limit in subscription currency. |
+| `cluster_name` | `string` | `"aks-ecommerce-devops"`| Managed AKS cluster name. |
+| `node_count` | `number` | `2` | Number of worker nodes in default pool. |
+| `vm_size` | `string` | `"Standard_B2s_v2"` | Virtual machine SKU for cluster worker nodes. |
+| `service_cidr` | `string` | `"10.1.0.0/16"` | CIDR range reserved for Kubernetes Services. |
+| `dns_service_ip` | `string` | `"10.1.0.10"` | CoreDNS IP address within the service CIDR. |
+
+### Terraform Outputs
+
+Run `terraform output` to retrieve deployment metadata:
+- `connect_command`: Ready-to-run Azure CLI command to authenticate `kubectl` to the AKS cluster (`az aks get-credentials ...`).
+- `acr_login_server`: FQDN login URL for Azure Container Registry.
+- `key_vault_name`: Provisioned Azure Key Vault name.
+- `tenant_id`: Azure Active Directory tenant ID.
+- `aks_secrets_provider_client_id`: Client ID of the AKS managed identity used by the CSI secrets store driver.
+- `app_insights_connection_string`: Connection string for backend application telemetry.
 
 ---
 
-## 📜 NPM Scripts Reference
+## CI/CD & DevSecOps Pipeline (GitHub Actions)
 
-### Root Directory
-- `npm run dev`: Runs both client and server development servers in parallel.
-- `npm run dev:client`: Runs client webpack-dev-server (`localhost:8080`).
-- `npm run dev:server`: Runs backend server with nodemon (`localhost:3000`).
-- `npm run postinstall`: Installs dependencies across both root, server, and client.
+The repository uses a fully automated GitHub Actions pipeline defined in [`.github/workflows/ci-cd.yml`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/.github/workflows/ci-cd.yml).
 
-### Server (`server/`)
-- `npm run dev`: Starts server with `nodemon` for auto-reloading.
-- `npm start`: Starts server in production mode with `cross-env NODE_ENV=production`.
-- `npm run seed:db <email> <password>`: Seeds MongoDB with an admin account, categories, brands, and 100 products.
+### Pipeline Architecture & Lifecycle
 
-### Client (`client/`)
-- `npm run dev`: Starts client with `webpack-dev-server`.
-- `npm run build`: Cleans `dist` and builds production bundle using Webpack.
-- `npm run clean`: Removes existing `dist/` build directory.
+The pipeline executes across 4 sequential and parallel stages:
+
+1. **Continuous Integration (Parallel Jobs):**
+   - **`server` job:** Runs on Ubuntu Latest, checks out code, configures Node.js 18 with npm cache, installs dependencies via `npm ci`, and executes backend test suites via `npm test`.
+   - **`client` job:** Runs in parallel on Node.js 18, installs dependencies via `npm ci`, and compiles the Webpack production bundle (`npm run build`).
+2. **Container Build & Push (`acr-push`):**
+   - Triggers automatically upon successful push to `develop` or `master`.
+   - Uses `docker/setup-buildx-action` and authenticates to Azure Container Registry (`ACR_NAME.azurecr.io`).
+   - Builds both `server` and `client` container images using their respective Dockerfiles.
+   - Tags each image with both `latest` and the immutable Git commit SHA (`${{ github.sha }}`).
+3. **Shift-Left DevSecOps Scanning (Trivy):**
+   - Integrates `aquasecurity/trivy-action` directly after image compilation.
+   - Scans both `server` and `client` container images for OS and library dependencies.
+   - Flags and reports any vulnerabilities at `CRITICAL` or `HIGH` severity levels.
+4. **Continuous Deployment (GitOps with Kustomize):**
+   - **Staging Deployment (`deploy-staging`):** Triggers on push to `develop`.
+     - Targets the `staging` environment.
+     - Authenticates to AKS using `KUBE_CONFIG`.
+     - Creates namespace `staging` if not present.
+     - Creates Kubernetes secret `appinsights-secrets` with Application Insights telemetry keys.
+     - Performs dynamic variable substitution on `kubernetes/base/secret-provider.yaml`.
+     - Executes `kustomize edit set image` to inject the unique image tag `${{ github.sha }}`.
+     - Deploys via `kubectl apply -k kubernetes/overlays/staging`.
+     - Verifies rollout health with `kubectl rollout status` (180s timeout).
+   - **Production Deployment (`deploy-production`):** Triggers on push to `master`.
+     - Targets the `production` environment.
+     - Executes identical validation and deployment steps against `kubernetes/overlays/production`.
+     - Automatically provisions 2 replicas per pod for high availability via Kustomize patches.
+
+### Required Pipeline Secrets
+
+Configure the following secrets in **GitHub Repository Settings > Secrets and variables > Actions**:
+
+| Secret Name | Description |
+| :--- | :--- |
+| `ACR_NAME` | Name of the Azure Container Registry (e.g., `devopscommerce`). |
+| `ACR_USERNAME` | Admin / Service Principal username for ACR authentication. |
+| `ACR_PASSWORD` | Access key / password for ACR authentication. |
+| `KUBE_CONFIG` | Base64-encoded or raw `kubeconfig` file for AKS cluster access. |
+| `APP_INSIGHTS_CONNECTION_STRING` | Instrumentation connection string from Application Insights. |
+| `KEY_VAULT_NAME` | Name of the Azure Key Vault (`kv-ecommerce-devops`). |
+| `AZURE_TENANT_ID` | Azure Active Directory Tenant ID. |
+| `AKS_SECRETS_PROVIDER_CLIENT_ID` | Client ID of the AKS Key Vault CSI managed identity. |
 
 ---
 
-## 📄 License
+## Kubernetes & GitOps Configuration (K8s / Kustomize)
+
+All Kubernetes definitions reside in [`kubernetes/`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/kubernetes) and are organized using the **Kustomize** pattern.
+
+### Base Architecture
+
+- **`client.yaml`:**
+  - Deployment managing Nginx-served frontend pods.
+  - Service type `LoadBalancer` mapping incoming port `80` to container port `8080`.
+- **`server.yaml`:**
+  - Deployment managing Node.js API pods.
+  - Service type `LoadBalancer` exposing port `3000`.
+  - Environment variables configured for MongoDB (`mongodb://mongo:27017/mern_ecommerce`) and base routing.
+  - Secrets injection: mounts CSI Secrets Store volume at `/mnt/secrets-store` and sources `JWT_SECRET` and `APPLICATIONINSIGHTS_CONNECTION_STRING` directly into pod environment variables.
+- **`mongo.yaml`:**
+  - Deployment running MongoDB container with internal ClusterIP Service on port `27017`.
+- **`rbac.yaml`:**
+  - Enforces least-privilege access by creating a dedicated `ServiceAccount` (`server-sa`), a `Role` with scoped permissions (read-only for ConfigMaps), and a binding (`server-rolebinding`).
+
+### Environment Overlays (Staging vs Production)
+
+```text
+kubernetes/overlays/
+├── staging/
+│   ├── kustomization.yaml   # Sets namespace: staging, labels environment=staging
+│   └── namespace.yaml       # Namespace definition for staging
+└── production/
+    ├── kustomization.yaml   # Sets namespace: production, applies replicas-patch.yaml
+    ├── namespace.yaml       # Namespace definition for production
+    └── replicas-patch.yaml  # Scales client & server deployments to 2 replicas
+```
+
+- **Staging:** Provides an isolated pre-production sandbox with 1 replica per service to minimize resource consumption.
+- **Production:** Enforces high-availability (HA) requirements by applying `replicas-patch.yaml` to scale both frontend and backend workloads to 2 replicas.
+
+### Azure Key Vault CSI Secrets Integration
+
+Secrets management adheres to a zero-trust model using the **Secrets Store CSI Driver**:
+1. The `SecretProviderClass` defined in [`kubernetes/base/secret-provider.yaml`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/kubernetes/base/secret-provider.yaml) communicates with Azure Key Vault using the AKS Managed Identity.
+2. The CSI driver fetches `JWT-SECRET` from Key Vault and creates a native Kubernetes Secret (`server-secrets`).
+3. The server deployment mounts the volume and binds the secret directly to environment variables without ever writing secrets to disk or source control.
+
+### Manual Kubernetes Deployment
+
+To deploy manifests manually using `kubectl` and `kustomize`:
+
+```bash
+# Connect to your AKS cluster
+az aks get-credentials --resource-group rg-ecommerce-devops --name aks-ecommerce-devops
+
+# Deploy Staging Environment
+kubectl apply -k kubernetes/overlays/staging
+
+# Check Staging Rollout Status
+kubectl rollout status deployment/server -n staging
+kubectl rollout status deployment/client -n staging
+
+# Deploy Production Environment
+kubectl apply -k kubernetes/overlays/production
+
+# Check Production Rollout Status
+kubectl rollout status deployment/server -n production
+kubectl rollout status deployment/client -n production
+
+# Inspect running pods and services
+kubectl get pods,svc -n production
+```
+
+---
+
+## Containerization & Local Dev Emulation
+
+### Multi-Stage Builds & Nginx Hardening
+
+#### Frontend Container (`client/Dockerfile`)
+The frontend leverages a two-stage build to ensure the smallest possible attack surface and minimal image size:
+1. **Build Stage (`node:18-bullseye-slim`):** Installs dependencies with `npm ci` and builds the optimized Webpack bundle into `/usr/src/app/dist`.
+2. **Runtime Stage (`nginx:alpine`):** Copies solely the compiled static assets into `/usr/share/nginx/html` and discards all Node.js runtimes and `node_modules`.
+3. **Nginx Security & Rate Limiting (`client/nginx.conf`):**
+   - Configures request rate limiting using `limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;` with a burst buffer of 70 requests.
+   - Provides SPA route resolution via `try_files $uri /index.html;` to eliminate 404s on browser reloads.
+
+#### Backend Container (`server/Dockerfile`)
+The API container is built using `node:18-bullseye-slim`, leveraging clean caching, scoped dependency installations, and exposing port `3000`.
+
+### Local Testing with Docker Compose
+
+For local integration testing of the container topology before pushing to cloud infrastructure:
+
+```bash
+# Build and start all services (Client, API Server, MongoDB)
+docker-compose up --build
+
+# Verify running services
+# Storefront UI:    http://localhost:8080
+# REST API Health:  http://localhost:3000/api/health
+
+# Stop and clean up containers and networks
+docker-compose down
+```
+
+The `docker-compose.yml` runs all three containers on an isolated bridge network (`app-network`) and automatically seeds mock database records for initial testing.
+
+---
+
+## Observability, Security & FinOps
+
+### Monitoring & Metric Alerting
+- **Log Analytics:** Aggregates container stdout/stderr logs across all AKS pods for auditing and centralized log querying.
+- **Application Insights:** Ingests live telemetry, HTTP request timings, and error rates from the Node.js API.
+- **Azure Monitor Alerts:**
+  - `alert-aks-cpu-high`: Triggers P2 alert if cluster node CPU utilization averages $>80\%$ over 5 minutes.
+  - `alert-server-pod-restarts`: Triggers P1 critical alert if the API server experiences failure loops or crash restarts.
+
+### DevSecOps Hardening
+- **Vulnerability Management:** Trivy automated image scanning catches vulnerabilities before containers are deployed.
+- **Zero-Trust Secrets:** No secrets stored in Git; secrets are generated via Terraform, vaulted in Azure Key Vault, and synced to pods on demand.
+- **Firewall & Network Isolation:** NSG blocks all non-essential ingress traffic. Internal database (`mongo`) has no public IP address and is accessible only within the cluster network.
+- **Kubernetes RBAC:** Pods execute using restricted `ServiceAccount` permissions rather than default cluster-admin privileges.
+
+### FinOps & Budget Management
+- **Budget Tracking:** Azure Consumption Budget enforces a \$50/month boundary on the resource group, sending automatic alerts at 80% (\$40) and 100% (\$50) spend marks.
+- **Cost Optimization Modeling:** Comprehensive architecture cost estimation and resource tier sizing is detailed in [`DevOpsCostReport.xlsx`](file:///d:/Projects/Capstone%20Projects/devOps/mern-ecommerce/DevOpsCostReport.xlsx).
+
+---
+
+## Target Application Workload Overview
+
+While this project is focused on the DevOps and Cloud Infrastructure platform, the underlying workload running within this infrastructure is a full-featured MERN stack e-commerce system:
+
+- **Frontend:** React SPA with Redux state management, responsive UI, dynamic search, product filtering, and shopping cart workflows.
+- **Backend:** Node.js & Express REST API featuring JWT authentication, role-based access control (Admin, Merchant, Member), Socket.io real-time chat, and third-party integrations (Mailgun, Mailchimp, Azure Blob Storage).
+- **Database:** MongoDB with Mongoose ODM handling user identities, product catalog items, order state machines, and merchant records.
+- **Health Probes:** Exposes `/health` and `/api/health` endpoints consumed by Kubernetes Liveness/Readiness probes and Azure monitoring agents.
+
+---
+
+## License
 
 This project is licensed under the [MIT License](LICENSE).
