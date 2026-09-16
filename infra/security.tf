@@ -8,8 +8,8 @@ resource "azurerm_key_vault" "main" {
   sku_name            = "standard"
 
   tags = {
-    Environment = "DevOps-Capstone"
-    Project     = "MERN-Ecommerce"
+    Environment = "production"
+    Project     = "mern-ecommerce"
     ManagedBy   = "Terraform"
   }
 }
@@ -97,8 +97,8 @@ resource "azurerm_network_security_group" "aks" {
   }
 
   tags = {
-    Environment = "DevOps-Capstone"
-    Project     = "MERN-Ecommerce"
+    Environment = "production"
+    Project     = "mern-ecommerce"
     ManagedBy   = "Terraform"
   }
 }
